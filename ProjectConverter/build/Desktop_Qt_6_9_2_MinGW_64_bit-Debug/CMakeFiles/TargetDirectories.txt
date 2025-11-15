@@ -1,0 +1,9 @@
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/ProjectConverter.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/list_install_components.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/install.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/install/local.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/install/strip.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/ProjectConverter_autogen_timestamp_deps.dir
+C:/OpenAA6/ProjectConverter/ProjectConverter/build/Desktop_Qt_6_9_2_MinGW_64_bit-Debug/CMakeFiles/ProjectConverter_autogen.dir

@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-6e89a94b3fe59922f797.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "ProjectConverterCMake",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ProjectConverterCMake::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ProjectConverterCMake-Debug-a70e314342523fde42d3.json",
+					"name" : "ProjectConverterCMake",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ProjectConverterCMake_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ProjectConverterCMake_autogen-Debug-2896853d4c4a3b9174cf.json",
+					"name" : "ProjectConverterCMake_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ProjectConverterCMake_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ProjectConverterCMake_autogen_timestamp_deps-Debug-632a3bed43ec27293f76.json",
+					"name" : "ProjectConverterCMake_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/OpenAA6/ProjectConverter/ProjectConverterCMake/build/Desktop_Qt_6_10_0_MinGW_64_bit-Debug",
+		"source" : "C:/OpenAA6/ProjectConverter/ProjectConverterCMake"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}
