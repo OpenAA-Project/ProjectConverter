@@ -32,7 +32,7 @@ private slots:
 private:
     Ui::ProjectConverter *ui;
 
-    bool    LoadSLN(const QString SLNFileName,QStringList &ProjList);
+    bool    LoadSLN(const QString &SLNFileName,QStringList &ProjList);
     bool    CreateCMakeFile(const QString &ProjFileName);
 };
 
@@ -45,6 +45,9 @@ struct VcxprojConfig {
 
     // ターゲットタイプ
     QString configurationType; // Application, DynamicLibrary, StaticLibrary
+
+    // 出力ディレクトリ
+    QString outDir;
 
     // ファイルリスト (この構成に固有の場合)
     // Note: 通常ファイルはグローバルだが、条件付きで含まれる場合もある
@@ -97,6 +100,9 @@ private:
     QMap<QString, VcxprojConfig> m_configs;
     // 見つかったプラットフォーム (例: "x64", "Win32")
     QSet<QString> m_platforms;
+    
+    // Qt Settings のモジュール保持用
+    QSet<QString> m_qtModules;
 
     // --- 解析ヘルパー ---
 
@@ -112,6 +118,9 @@ private:
     // <PropertyGroup> (構成ごと) を解析
     void parseConfigProperties(const QDomElement& root);
 
+    // <PropertyGroup Label="QtSettings"> を解析
+    void parseQtModules(const QDomElement& root);
+
     // <ItemDefinitionGroup> (構成ごと) を解析
     void parseItemDefinitions(const QDomElement& root);
 
@@ -124,6 +133,9 @@ private:
     // パスを CMake 形式 (スラッシュ区切り) に変換
     QString toCMakePath(const QString& path) const;
     QStringList toCMakePaths(const QStringList& paths) const;
+
+    // Qtモジュールの文字列フォーマット処理
+    QStringList getQtComponents() const;
 
     // --- CMake 生成ヘルパー ---
     void appendHeader(QString& content) const;

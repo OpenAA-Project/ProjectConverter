@@ -37,7 +37,7 @@ void ProjectConverter::on_pushButtonFileName_clicked()
                                                     , /**/"SLN(*.sln);;VCXProj(*.vcxproj);;All files(*.*)");
     if(FileList.count()!=0){
         ProjectFileName.clear();
-
+        ui->lineEditFileName->setText(FileList.join(';'));
         for(int i=0;i<FileList.count();i++){
             QString FileName=FileList[i];
             QFileInfo   FInfo(FileName);
@@ -59,13 +59,16 @@ void ProjectConverter::on_pushButtonFileName_clicked()
 }
 
 
-bool    ProjectConverter::LoadSLN(const QString SLNFileName,QStringList &ProjList)
+bool    ProjectConverter::LoadSLN(const QString &SLNFileName,QStringList &ProjList)
 {
     QFile file(SLNFileName);
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return false;
     }
+
+    QFileInfo   SLNInfo(SLNFileName);
+	QString     SLNPath = SLNInfo.absolutePath();
 
     QTextStream in(&file);
     in.setAutoDetectUnicode(true);  // UTF-8 BOM対応など
@@ -76,7 +79,7 @@ bool    ProjectConverter::LoadSLN(const QString SLNFileName,QStringList &ProjLis
         QString line = in.readLine();
         QRegularExpressionMatch match = re.match(line);
         if (match.hasMatch()) {
-            ProjList << match.captured(1);
+            ProjList << SLNPath+QDir::separator()+match.captured(1);
         }
     }
     ProjList.removeDuplicates();
@@ -98,7 +101,6 @@ VcxprojParser::VcxprojParser(const QString& vcxprojPath)
     m_projectDir = fileInfo.absolutePath();
     m_projectName = fileInfo.baseName();
 }
-
 bool VcxprojParser::parse() {
     QFile file(m_vcxprojPath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -126,6 +128,7 @@ bool VcxprojParser::parse() {
         parseProjectConfigurations(root);
         parseGlobalProperties(root);
         parseConfigProperties(root);
+        parseQtModules(root);
         parseItemDefinitions(root);
         parseItemGroups(root);
     }
@@ -146,16 +149,92 @@ bool VcxprojParser::parse() {
     return true;
 }
 
-// Condition 属性 (例: "'$(Configuration)|$(Platform)'=='Debug|x64'") を解析
+void VcxprojParser::parseQtModules(const QDomElement& root) {
+    QDomNodeList propGroups = root.elementsByTagName("PropertyGroup");
+    for (int i = 0; i < propGroups.count(); ++i) {
+        QDomElement propGroup = propGroups.at(i).toElement();
+        if (propGroup.attribute("Label") == "QtSettings") {
+            QDomElement qtModulesEl = propGroup.firstChildElement("QtModules");
+            if (!qtModulesEl.isNull()) {
+                QStringList modules = qtModulesEl.text().split(';', Qt::SkipEmptyParts);
+                for (const QString& mod : modules) {
+                    m_qtModules.insert(mod);
+                }
+            }
+        }
+    }
+}
+
+
+QStringList VcxprojParser::getQtComponents() const {
+    QStringList qtComponents;
+    for (const QString& mod : m_qtModules) {
+        QString m = mod.trimmed().toLower();
+        
+        // 基本モジュール
+        if (m == "core") qtComponents.append("Core");
+        else if (m == "gui") qtComponents.append("Gui");
+        else if (m == "network") qtComponents.append("Network");
+        else if (m == "widgets") qtComponents.append("Widgets");
+        else if (m == "sql") qtComponents.append("Sql");
+        else if (m == "core5compat") qtComponents.append("Core5Compat");
+        else if (m == "xml") qtComponents.append("Xml");
+        
+        // OpenGL 関連 (大文字小文字の区別が特殊なもの)
+        else if (m == "opengl") qtComponents.append("OpenGL");
+        else if (m == "openglwidgets") qtComponents.append("OpenGLWidgets");
+        
+        // その他の一般的なモジュール
+        else if (m == "printsupport") qtComponents.append("PrintSupport");
+        else if (m == "svg") qtComponents.append("Svg");
+        else if (m == "svgwidgets") qtComponents.append("SvgWidgets");
+        else if (m == "multimedia") qtComponents.append("Multimedia");
+        else if (m == "multimediawidgets") qtComponents.append("MultimediaWidgets");
+        else if (m == "qml") qtComponents.append("Qml");
+        else if (m == "quick") qtComponents.append("Quick");
+        else if (m == "quickwidgets") qtComponents.append("QuickWidgets");
+        else if (m == "serialport") qtComponents.append("SerialPort");
+        else if (m == "websockets") qtComponents.append("WebSockets");
+        else if (m == "bluetooth") qtComponents.append("Bluetooth");
+        else if (m == "concurrent") qtComponents.append("Concurrent");
+        else if (m == "testlib" || m == "test") qtComponents.append("Test");
+        else if (m == "axcontainer") qtComponents.append("AxContainer");
+        else if (m == "axserver") qtComponents.append("AxServer");
+        else if (m == "dbus") qtComponents.append("DBus");
+        else if (m == "uitools") qtComponents.append("UiTools");
+        else if (m == "help") qtComponents.append("Help");
+        else if (m == "designer") qtComponents.append("Designer");
+        
+        // リストにない未知のモジュールのフォールバック処理 (先頭だけ大文字にする)
+        else {
+            if (!m.isEmpty()) {
+                m[0] = m[0].toUpper();
+                qtComponents.append(m);
+            }
+        }
+    }
+    
+    // 重複を削除
+    qtComponents.removeDuplicates();
+    
+    // モジュールが1つも設定されていなかった場合のデフォルト
+    if (qtComponents.isEmpty()) {
+        qtComponents << "Core" << "Gui" << "Widgets";
+    }
+    
+    return qtComponents;
+}
+// Condition 属性を解析
 QString VcxprojParser::extractCondition(const QDomElement& element) const {
     if (!element.hasAttribute("Condition")) {
         return QString();
     }
-    // 正規表現で 'Config|Platform' の形式を抽出
-    static const QRegularExpression condRegex(R"('(?:\$\(Configuration\)\|\$\(Platform\))'=='([^']*)')");
-    QRegularExpressionMatch match = condRegex.match(element.attribute("Condition"));
-    if (match.hasMatch()) {
-        return match.captured(1); // "Debug|x64"
+    QString conditionStr = element.attribute("Condition");
+    int index = conditionStr.indexOf("==");
+    if (index != -1) {
+        QString right = conditionStr.mid(index + 2).trimmed();
+        right.remove('\'');
+        return right; // e.g., "Debug|x64"
     }
     return QString();
 }
@@ -230,6 +309,12 @@ void VcxprojParser::parseConfigProperties(const QDomElement& root) {
         if (!configTypeEl.isNull()) {
             config.configurationType = configTypeEl.text();
         }
+
+        // 出力ディレクトリ (OutDir)
+        QDomElement outDirEl = propGroup.firstChildElement("OutDir");
+        if (!outDirEl.isNull()) {
+            config.outDir = outDirEl.text();
+        }
     }
 }
 
@@ -240,30 +325,62 @@ void VcxprojParser::parseItemDefinitions(const QDomElement& root) {
         QDomElement defGroup = defGroups.at(i).toElement();
         QString condition = extractCondition(defGroup);
 
-        if (condition.isEmpty() || !m_configs.contains(condition)) {
+        QList<VcxprojConfig*> targetConfigs;
+        
+        if (condition.isEmpty()) {
+            // Conditionが指定されていない場合は、すべての構成に適用する
+            for (auto it = m_configs.begin(); it != m_configs.end(); ++it) {
+                targetConfigs.append(&it.value());
+            }
+        } else if (m_configs.contains(condition)) {
+            // 指定された構成に適用
+            targetConfigs.append(&m_configs[condition]);
+        } else {
             continue;
         }
 
-        VcxprojConfig& config = m_configs[condition];
+        for (VcxprojConfig* config : targetConfigs) {
+            // <ClCompile>
+            QDomElement clCompile = defGroup.firstChildElement("ClCompile");
+            if (!clCompile.isNull()) {
+                QStringList incDirs = getSemicolonList(clCompile, "AdditionalIncludeDirectories");
+                if (!incDirs.isEmpty()) {
+                    config->includeDirectories.append(incDirs);
+                    config->includeDirectories.removeDuplicates();
+                }
 
-        // <ClCompile>
-        QDomElement clCompile = defGroup.firstChildElement("ClCompile");
-        if (!clCompile.isNull()) {
-            config.includeDirectories = getSemicolonList(clCompile, "AdditionalIncludeDirectories");
-            config.preprocessorDefinitions = getSemicolonList(clCompile, "PreprocessorDefinitions");
+                QStringList prepDefs = getSemicolonList(clCompile, "PreprocessorDefinitions");
+                if (!prepDefs.isEmpty()) {
+                    config->preprocessorDefinitions.append(prepDefs);
+                    config->preprocessorDefinitions.removeDuplicates();
+                }
 
-            QDomElement opt = clCompile.firstChildElement("Optimization");
-            if (!opt.isNull()) config.optimization = opt.text();
+                QDomElement opt = clCompile.firstChildElement("Optimization");
+                if (!opt.isNull() && !opt.text().isEmpty()) config->optimization = opt.text();
 
-            QDomElement rtLib = clCompile.firstChildElement("RuntimeLibrary");
-            if (!rtLib.isNull()) config.runtimeLibrary = rtLib.text();
-        }
+                QDomElement rtLib = clCompile.firstChildElement("RuntimeLibrary");
+                if (!rtLib.isNull() && !rtLib.text().isEmpty()) config->runtimeLibrary = rtLib.text();
+            }
 
-        // <Link>
-        QDomElement link = defGroup.firstChildElement("Link");
-        if (!link.isNull()) {
-            config.libraryDirectories = getSemicolonList(link, "AdditionalLibraryDirectories");
-            config.additionalDependencies = getSemicolonList(link, "AdditionalDependencies");
+            // <Link> または <Lib> (静的ライブラリ用)
+            QDomElement link = defGroup.firstChildElement("Link");
+            if (link.isNull()) {
+                link = defGroup.firstChildElement("Lib");
+            }
+            
+            if (!link.isNull()) {
+                QStringList libDirs = getSemicolonList(link, "AdditionalLibraryDirectories");
+                if (!libDirs.isEmpty()) {
+                    config->libraryDirectories.append(libDirs);
+                    config->libraryDirectories.removeDuplicates();
+                }
+
+                QStringList addDeps = getSemicolonList(link, "AdditionalDependencies");
+                if (!addDeps.isEmpty()) {
+                    config->additionalDependencies.append(addDeps);
+                    config->additionalDependencies.removeDuplicates();
+                }
+            }
         }
     }
 }
@@ -354,6 +471,10 @@ QStringList VcxprojParser::toCMakePaths(const QStringList& paths) const {
 // CMakeLists.txt 生成
 // ----------------------------------------------------------------
 
+// ----------------------------------------------------------------
+// CMakeLists.txt 生成
+// ----------------------------------------------------------------
+
 QString VcxprojParser::generateCMakeLists() const {
     QString content;
     QTextStream ss(&content);
@@ -361,7 +482,8 @@ QString VcxprojParser::generateCMakeLists() const {
     appendHeader(content);
     appendProject(content);
     
-    bool needsQt = !m_uiFiles.isEmpty() || !m_qrcFiles.isEmpty();
+    // 【修正】UIファイルがなくても、Qtモジュールが指定されていれば Qtセットアップを行う
+    bool needsQt = !m_qtModules.isEmpty() || !m_uiFiles.isEmpty() || !m_qrcFiles.isEmpty();
     if (needsQt) {
         appendQtSetup(content);
     }
@@ -380,17 +502,6 @@ QString VcxprojParser::generateCMakeLists() const {
 
     appendTarget(content);
     appendTargetProperties(content);
-
-    if (needsQt) {
-         ss << "\n# Qt モジュールへのリンク\n";
-         ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
-         ss << "    Qt6::Core\n";
-         ss << "    Qt6::Gui\n";
-         ss << "    Qt6::Widgets\n";
-         // .vcxproj から Qt モジュール (Network, Xml など) を検出するのは困難
-         // ここでは標準的なものを追加
-         ss << ")\n";
-    }
 
     return content;
 }
@@ -416,25 +527,27 @@ void VcxprojParser::appendProject(QString& content) const {
     ss << "set(CMAKE_AUTORCC ON)\n";
     ss << "set(CMAKE_AUTOUIC ON)\n\n";
 
-    // Win32 / x64 のための分岐 (あれば)
-    if (m_platforms.contains("Win32")) {
-         ss << "if(CMAKE_GENERATOR_PLATFORM STREQUAL \"Win32\")\n";
-         ss << "    # Settings for Win32\n";
-         ss << "endif()\n";
-    }
-    if (m_platforms.contains("x64")) {
-         ss << "if(CMAKE_GENERATOR_PLATFORM STREQUAL \"x64\")\n";
-         ss << "    # Settings for x64\n";
-         ss << "endif()\n";
-    }
-    ss << "\n";
+    ss << "if(WIN32)\n";
+    ss << "    add_compile_definitions(WIN32 _WINDOWS)\n";
+    ss << "endif()\n\n";
+
+    ss << "if(UNIX)\n";
+    ss << "    if(CMAKE_SYSTEM_NAME STREQUAL \"Linux\")\n";
+    ss << "        # Linux / Raspberry Pi specific settings\n";
+    ss << "    endif()\n";
+    ss << "endif()\n\n";
 }
 
 void VcxprojParser::appendQtSetup(QString& content) const {
-     QTextStream ss(&content);
-     ss << "# Find Qt6\n";
-     ss << "find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)\n"; 
-     ss << "# TODO: Add other required Qt components (e.g., Network, Xml)\n\n";
+    QTextStream ss(&content);
+    ss << "# Find Qt6\n";
+    ss << "find_package(Qt6 REQUIRED COMPONENTS";
+    
+    QStringList comps = getQtComponents();
+    for (const QString& comp : comps) {
+        ss << " " << comp;
+    }
+    ss << ")\n\n";
 }
 
 void VcxprojParser::appendFileLists(QString& content) const {
@@ -460,13 +573,10 @@ void VcxprojParser::appendFileLists(QString& content) const {
         // Note: これらのリソースをどう扱うか (qrc に含めるか？) は vcxproj だけでは判断困難
     }
 }
-
 void VcxprojParser::appendTarget(QString& content) const {
     QTextStream ss(&content);
     
-    // 最初の構成 (または Release|x64) をデフォルトとしてターゲットタイプを決定
-    // 本来は CMake 側で if(CONFIG) すべきだが、ターゲットタイプは通常全構成で同じ
-    QString targetType = "Application"; // Default
+    QString targetType = "Application";
     if (m_configs.contains("Release|x64")) {
         targetType = m_configs["Release|x64"].configurationType;
     } else if (!m_configs.isEmpty()) {
@@ -475,19 +585,18 @@ void VcxprojParser::appendTarget(QString& content) const {
 
     ss << "# Define the target\n";
     if (targetType == "Application") {
-        ss << "add_executable(${PROJECT_NAME} WIN32\n"; // WIN32 (WinMain) を想定
+        ss << "add_executable(${PROJECT_NAME}\n";
     } else if (targetType == "StaticLibrary") {
         ss << "add_library(${PROJECT_NAME} STATIC\n";
     } else if (targetType == "DynamicLibrary") {
         ss << "add_library(${PROJECT_NAME} SHARED\n";
     } else {
         ss << "# WARNING: Unknown ConfigurationType: " << targetType << ". Defaulting to Application.\n";
-        ss << "add_executable(${PROJECT_NAME} WIN32\n";
+        ss << "add_executable(${PROJECT_NAME}\n";
     }
     
     ss << "    ${PROJECT_SOURCES}\n";
     ss << "    ${PROJECT_HEADERS}\n";
-    // .ui, .qrc は qt_wrap_ui/qt_add_resources が SOURCES に追加する
     ss << ")\n\n";
 }
 
@@ -496,82 +605,216 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
 
     ss << "# === Configuration-specific settings ===\n\n";
 
-    for (const VcxprojConfig& config : m_configs.values()) {
-        QString configNameUpper = config.configType.toUpper(); // DEBUG, RELEASE
+    QSet<QString> processedConfigs;
 
-        // プラットフォーム (x64/Win32) を考慮した条件
-        // if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
-        // ただし、CMake VS Generator は CMAKE_GENERATOR_PLATFORM を使わない...
-        // Generator Expression ( $<CONFIG:Debug> ) を使うのが最善
+    for (const VcxprojConfig& config : m_configs.values()) {
+        QString configType = config.configType;
+        if (processedConfigs.contains(configType)) {
+            continue;
+        }
+        processedConfigs.insert(configType);
+
+        // --- Output Directory ---
+        QString outDir;
+        for (const VcxprojConfig& cfg : m_configs.values()) {
+            if (cfg.configType == configType && !cfg.outDir.isEmpty()) {
+                outDir = cfg.outDir;
+                break;
+            }
+        }
+
+        if (!outDir.isEmpty()) {
+            // パス区切り文字の変換とマクロの解決
+            QString cmakeOutDir = outDir.replace("\\", "/");
+            cmakeOutDir.replace("$(ProjectDir)", "${CMAKE_CURRENT_SOURCE_DIR}/");
+            cmakeOutDir.replace("$(SolutionDir)", "${CMAKE_SOURCE_DIR}/");
+            cmakeOutDir.replace("$(Configuration)", configType);
+            
+            // 末尾のスラッシュを削除
+            if (cmakeOutDir.endsWith("/")) {
+                cmakeOutDir.chop(1);
+            }
+
+            // 絶対パスやCMake変数が先頭についていない相対パスの場合、現在のディレクトリを付与
+            if (!cmakeOutDir.startsWith("/") && !cmakeOutDir.contains(":") && !cmakeOutDir.startsWith("${")) {
+                cmakeOutDir = "${CMAKE_CURRENT_SOURCE_DIR}/" + cmakeOutDir;
+            }
+
+            QString upperConfig = configType.toUpper();
+            ss << "set_target_properties(${PROJECT_NAME} PROPERTIES\n";
+            ss << "    ARCHIVE_OUTPUT_DIRECTORY_" << upperConfig << " \"" << cmakeOutDir << "\"\n";
+            ss << "    LIBRARY_OUTPUT_DIRECTORY_" << upperConfig << " \"" << cmakeOutDir << "\"\n";
+            ss << "    RUNTIME_OUTPUT_DIRECTORY_" << upperConfig << " \"" << cmakeOutDir << "\"\n";
+            ss << ")\n\n";
+        }
 
         // --- Include Directories ---
-        if (!config.includeDirectories.isEmpty()) {
+        QSet<QString> includeDirs;
+        for (const VcxprojConfig& cfg : m_configs.values()) {
+            if (cfg.configType == configType) {
+                for (const QString& path : cfg.includeDirectories) {
+                    includeDirs.insert(path);
+                }
+            }
+        }
+        
+        if (!includeDirs.isEmpty()) {
             ss << "target_include_directories(${PROJECT_NAME} PRIVATE\n";
-            ss << "    $<$<CONFIG:" << config.configType << ">:\n";
-            QStringList cmakePaths = toCMakePaths(config.includeDirectories);
+            ss << "    $<$<CONFIG:" << configType << ">:\n";
+            
+            QStringList includeList;
+            for (const QString& path : includeDirs) {
+                includeList.append(path);
+            }
+            
+            QStringList cmakePaths = toCMakePaths(includeList);
             for (const QString& path : cmakePaths) {
-                // TODO: $(Platform) などのマクロ展開
-                QString p = path;
-                p.replace("$(Platform)", config.platform); 
-                ss << "        \"" << p << "\"\n";
+                ss << "        \"" << path << "\"\n";
             }
             ss << "    >\n)\n\n";
         }
-        
+
         // --- Library Directories ---
-        if (!config.libraryDirectories.isEmpty()) {
+        QSet<QString> libDirs;
+        for (const VcxprojConfig& cfg : m_configs.values()) {
+            if (cfg.configType == configType) {
+                for (const QString& path : cfg.libraryDirectories) {
+                    if (path != "%(AdditionalLibraryDirectories)") {
+                        libDirs.insert(path);
+                    }
+                }
+            }
+        }
+        
+        if (!libDirs.isEmpty()) {
             ss << "target_link_directories(${PROJECT_NAME} PRIVATE\n";
-            ss << "    $<$<CONFIG:" << config.configType << ">:\n";
-            QStringList cmakePaths = toCMakePaths(config.libraryDirectories);
+            ss << "    $<$<CONFIG:" << configType << ">:\n";
+            
+            QStringList libDirList;
+            for (const QString& path : libDirs) {
+                libDirList.append(path);
+            }
+            
+            QStringList cmakePaths = toCMakePaths(libDirList);
             for (const QString& path : cmakePaths) {
-                QString p = path;
-                p.replace("$(Platform)", config.platform);
-                ss << "        \"" << p << "\"\n";
+                ss << "        \"" << path << "\"\n";
             }
             ss << "    >\n)\n\n";
         }
 
         // --- Preprocessor Definitions ---
-        if (!config.preprocessorDefinitions.isEmpty()) {
-            ss << "target_compile_definitions(${PROJECT_NAME} PRIVATE\n";
-            ss << "    $<$<CONFIG:" << config.configType << ">:\n";
-            for (const QString& def : config.preprocessorDefinitions) {
-                if (def == "%(PreprocessorDefinitions)") continue;
+        QSet<QString> definitions;
+        QSet<QString> win32Definitions;
+        for (const VcxprojConfig& cfg : m_configs.values()) {
+            if (cfg.configType == configType) {
+                for (const QString& def : cfg.preprocessorDefinitions) {
+                    if (def != "%(PreprocessorDefinitions)") {
+                        if (def.trimmed().toUpper() == "WIN32" || def.trimmed().toUpper() == "_WINDOWS") {
+                            win32Definitions.insert(def);
+                        } else {
+                            definitions.insert(def);
+                        }
+                    }
+                }
+            }
+        }
 
-                QString deft=def;
+        if (!definitions.isEmpty()) {
+            ss << "target_compile_definitions(${PROJECT_NAME} PRIVATE\n";
+            ss << "    $<$<CONFIG:" << configType << ">:\n";
+            for (const QString& def : definitions) {
+                QString deft = def;
                 ss << "        \"" << deft.replace(QString("\""), QString("\\\"")) << "\"\n";
             }
             ss << "    >\n)\n\n";
         }
 
-        // --- Optimization ---
-        appendOptimizationFlags(content, config);
-
-        // --- Code Generation (Runtime Library) ---
-        appendRuntimeLibraryFlags(content, config);
+        if (!win32Definitions.isEmpty()) {
+            ss << "if(WIN32)\n";
+            ss << "    target_compile_definitions(${PROJECT_NAME} PRIVATE\n";
+            ss << "        $<$<CONFIG:" << configType << ">:\n";
+            for (const QString& def : win32Definitions) {
+                ss << "            \"" << def << "\"\n";
+            }
+            ss << "        >\n";
+            ss << "    )\n";
+            ss << "endif()\n\n";
+        }
         
         // --- Linked Libraries ---
-        if (!config.additionalDependencies.isEmpty()) {
-             ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
-             ss << "    $<$<CONFIG:" << config.configType << ">:\n";
-             QStringList libs = config.additionalDependencies;
-             libs.removeAll("%(AdditionalDependencies)");
-             for(const QString& lib : libs) {
-                // .lib 拡張子がない場合は、そのまま (例: kernel32.lib)
-                // ある場合はフルパスかもしれないので toCMakePath
-                if (lib.endsWith(".lib", Qt::CaseInsensitive)) {
-                     ss << "        \"" << toCMakePath(lib) << "\"\n";
-                } else {
-                     ss << "        " << lib << "\n";
+        QSet<QString> libs;
+        for (const VcxprojConfig& cfg : m_configs.values()) {
+            if (cfg.configType == configType) {
+                for (const QString& lib : cfg.additionalDependencies) {
+                    if (lib != "%(AdditionalDependencies)") {
+                        // Qtのモジュールは末尾で一括リンクするため除外
+                        if (lib.contains("QtCore", Qt::CaseInsensitive) ||
+                            lib.contains("QtGui", Qt::CaseInsensitive) ||
+                            lib.contains("QtSql", Qt::CaseInsensitive) ||
+                            lib.contains("QtNetwork", Qt::CaseInsensitive)) {
+                            continue;
+                        }
+                        libs.insert(lib);
+                    }
                 }
-             }
-             ss << "    >\n)\n\n";
+            }
         }
 
-        ss << "# --- End of " << config.configName << " ---\n\n";
-    }
-}
+        if (!libs.isEmpty()) {
+            // Windows 向けのリンク設定 (そのまま .lib として出力)
+            ss << "if(WIN32)\n";
+            ss << "    target_link_libraries(${PROJECT_NAME} PRIVATE\n";
+            ss << "        $<$<CONFIG:" << configType << ">:\n";
+            for (const QString& lib : libs) {
+                ss << "            \"" << toCMakePath(lib) << "\"\n";
+            }
+            ss << "        >\n";
+            ss << "    )\n";
+            
+            // Linux / Raspberry Pi (UNIX) 向けのリンク設定 (lib〜.a に自動変換)
+            ss << "elseif(UNIX)\n";
+            ss << "    target_link_libraries(${PROJECT_NAME} PRIVATE\n";
+            ss << "        $<$<CONFIG:" << configType << ">:\n";
+            for (const QString& lib : libs) {
+                QString unixLib = toCMakePath(lib); // バックスラッシュをスラッシュに変換
+                
+                // .lib で終わるファイル名の場合、プレフィックス(lib)と拡張子(.a)を変換
+                if (unixLib.endsWith(".lib", Qt::CaseInsensitive)) {
+                    int lastSlash = unixLib.lastIndexOf('/');
+                    if (lastSlash == -1) {
+                        // パスが含まれていない場合 (例: Component.lib -> libComponent.a)
+                        unixLib = "lib" + unixLib.left(unixLib.length() - 4) + ".a";
+                    } else {
+                        // パスが含まれている場合 (例: ../Lib/Release/Component.lib -> ../Lib/Release/libComponent.a)
+                        QString path = unixLib.left(lastSlash + 1);
+                        QString fileName = unixLib.mid(lastSlash + 1);
+                        unixLib = path + "lib" + fileName.left(fileName.length() - 4) + ".a";
+                    }
+                }
+                ss << "            \"" << unixLib << "\"\n";
+            }
+            ss << "        >\n";
+            ss << "    )\n";
+            ss << "endif()\n\n";
+        }
 
+        // --- Compiler/Optimization Options (MSVC Only) ---
+        ss << "if(MSVC)\n";
+        appendOptimizationFlags(content, config);
+        appendRuntimeLibraryFlags(content, config);
+        ss << "endif()\n\n";
+
+        ss << "# --- End of " << configType << " ---\n\n";
+    }
+
+    // Qt 6 モジュールへのリンク
+    ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
+    QStringList comps = getQtComponents();
+    for (const QString& comp : comps) {
+        ss << "    Qt6::" << comp << "\n";
+    }
+    ss << ")\n";
+}
 
 void VcxprojParser::appendOptimizationFlags(QString& content, const VcxprojConfig& config) const {
     if (config.optimization.isEmpty()) return;
@@ -579,22 +822,22 @@ void VcxprojParser::appendOptimizationFlags(QString& content, const VcxprojConfi
     QTextStream ss(&content);
     QString cmakeFlag;
 
-    if (config.optimization == "Disabled") { // /Od
+    if (config.optimization == "Disabled") {
         cmakeFlag = "/Od";
-    } else if (config.optimization == "MinSpace") { // /O1
+    } else if (config.optimization == "MinSpace") {
         cmakeFlag = "/O1";
-    } else if (config.optimization == "MaxSpeed") { // /O2
+    } else if (config.optimization == "MaxSpeed") {
         cmakeFlag = "/O2";
-    } else if (config.optimization == "Full") { // /Ox
+    } else if (config.optimization == "Full") {
         cmakeFlag = "/Ox";
     } else {
         ss << "# WARNING: Unknown Optimization flag: " << config.optimization << "\n";
         return;
     }
 
-    ss << "target_compile_options(${PROJECT_NAME} PRIVATE\n";
-    ss << "    $<$<CONFIG:" << config.configType << ">:" << cmakeFlag << ">\n";
-    ss << ")\n";
+    ss << "    target_compile_options(${PROJECT_NAME} PRIVATE\n";
+    ss << "        $<$<CONFIG:" << config.configType << ">:" << cmakeFlag << ">\n";
+    ss << "    )\n";
 }
 
 void VcxprojParser::appendRuntimeLibraryFlags(QString& content, const VcxprojConfig& config) const {
@@ -603,11 +846,6 @@ void VcxprojParser::appendRuntimeLibraryFlags(QString& content, const VcxprojCon
     QTextStream ss(&content);
     QString cmakeFlag;
 
-    // MultiThreadedDebugDLL (/MDd)
-    // MultiThreadedDLL (/MD)
-    // MultiThreadedDebug (/MTd)
-    // MultiThreaded (/MT)
-    
     if (config.runtimeLibrary == "MultiThreadedDebugDLL") cmakeFlag = "/MDd";
     else if (config.runtimeLibrary == "MultiThreadedDLL") cmakeFlag = "/MD";
     else if (config.runtimeLibrary == "MultiThreadedDebug") cmakeFlag = "/MTd";
@@ -617,9 +855,9 @@ void VcxprojParser::appendRuntimeLibraryFlags(QString& content, const VcxprojCon
          return;
     }
 
-    ss << "target_compile_options(${PROJECT_NAME} PRIVATE\n";
-    ss << "    $<$<CONFIG:" << config.configType << ">:" << cmakeFlag << ">\n";
-    ss << ")\n";
+    ss << "    target_compile_options(${PROJECT_NAME} PRIVATE\n";
+    ss << "        $<$<CONFIG:" << config.configType << ">:" << cmakeFlag << ">\n";
+    ss << "    )\n";
 }
 
 
