@@ -23,22 +23,22 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <QtRcc Include="ProjectConverter.qrc">
+    <QtRcc Include="CopyFiles.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>
-    <QtUic Include="ProjectConverter.ui">
+    <QtUic Include="CopyFiles.ui">
       <Filter>Form Files</Filter>
     </QtUic>
-    <QtMoc Include="ProjectConverter.h">
+    <QtMoc Include="CopyFiles.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <ClCompile Include="ProjectConverter.cpp">
+    <ClCompile Include="CopyFiles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <None Include="ProjectConverter.ico">
+    <None Include="CopyFiles.ico">
       <Filter>Resource Files</Filter>
     </None>
-    <ResourceCompile Include="ProjectConverter.rc">
+    <ResourceCompile Include="CopyFiles.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -46,29 +46,5 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\OpenAA6\Open\XShowVersion.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="XProjectConverter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="EditMacroDialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\Open\NList.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <QtUic Include="EditMacroDialog.ui">
-      <Filter>Form Files</Filter>
-    </QtUic>
-  </ItemGroup>
-  <ItemGroup>
-    <QtMoc Include="EditMacroDialog.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
   </ItemGroup>
 </Project>

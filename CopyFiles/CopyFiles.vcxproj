@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{17C2B2B3-57F4-4F23-8396-9CF2C61708A0}</ProjectGuid>
+    <ProjectGuid>{E0D62E62-2009-403F-B727-C0CB1097E408}</ProjectGuid>
     <Keyword>QtVS_v304</Keyword>
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">10.0</WindowsTargetPlatformVersion>
@@ -62,19 +62,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutDir>..\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <Optimization>MaxSpeedHighLevel</Optimization>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
-      <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
       <AdditionalIncludeDirectories>..\..\OpenAA6\Open;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <OpenMP>GenerateParallelCode</OpenMP>
+      <Optimization>MaxSpeedHighLevel</Optimization>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>..\..\OpenAA6\Lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -100,40 +93,23 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <FunctionLevelLinking>false</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="EditMacroDialog.cpp" />
-    <ClCompile Include="XProjectConverter.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
-      <InterproceduralOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NoIPO</InterproceduralOptimization>
-    </ClCompile>
-    <QtRcc Include="ProjectConverter.qrc" />
-    <QtUic Include="EditMacroDialog.ui" />
-    <QtUic Include="ProjectConverter.ui" />
-    <QtMoc Include="ProjectConverter.h" />
-    <ClCompile Include="..\..\OpenAA6\Open\XShowVersion.cpp" />
-    <ClCompile Include="ProjectConverter.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
-      <InterproceduralOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NoIPO</InterproceduralOptimization>
-    </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Disabled</Optimization>
-      <InterproceduralOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NoIPO</InterproceduralOptimization>
-    </ClCompile>
-    <None Include="ProjectConverter.ico" />
-    <ResourceCompile Include="ProjectConverter.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\Open\NList.h" />
-    <QtMoc Include="EditMacroDialog.h" />
+    <QtRcc Include="CopyFiles.qrc" />
+    <QtUic Include="CopyFiles.ui" />
+    <QtMoc Include="CopyFiles.h" />
+    <ClCompile Include="CopyFiles.cpp" />
+    <ClCompile Include="main.cpp" />
+    <None Include="CopyFiles.ico" />
+    <ResourceCompile Include="CopyFiles.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
