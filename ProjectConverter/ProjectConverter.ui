@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>972</width>
-    <height>828</height>
+    <height>1013</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>780</y>
+      <y>959</y>
       <width>141</width>
       <height>31</height>
      </rect>
@@ -175,7 +175,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>600</y>
+      <y>780</y>
       <width>911</width>
       <height>31</height>
      </rect>
@@ -194,7 +194,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>630</y>
+      <y>809</y>
       <width>911</width>
       <height>141</height>
      </rect>
@@ -282,7 +282,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>700</y>
+      <y>879</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -295,7 +295,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>660</y>
+      <y>839</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -308,7 +308,7 @@
     <property name="geometry">
      <rect>
       <x>630</x>
-      <y>780</y>
+      <y>959</y>
       <width>91</width>
       <height>31</height>
      </rect>
@@ -321,7 +321,7 @@
     <property name="geometry">
      <rect>
       <x>730</x>
-      <y>780</y>
+      <y>959</y>
       <width>91</width>
       <height>31</height>
      </rect>
@@ -334,13 +334,94 @@
     <property name="geometry">
      <rect>
       <x>830</x>
-      <y>780</y>
+      <y>959</y>
       <width>91</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
      <string>Load</string>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBoxEnableParallelBuild">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>964</y>
+      <width>131</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Parallel build</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBoxMaxParallelBuilds">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>960</y>
+      <width>111</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <number>256</number>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="listWidgetExcludedLibraryFiles">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>630</y>
+      <width>911</width>
+      <height>141</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonAddExcludedLibraryFile">
+    <property name="geometry">
+     <rect>
+      <x>930</x>
+      <y>660</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>+</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>600</y>
+      <width>911</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::Panel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Sunken</enum>
+    </property>
+    <property name="text">
+     <string>Excluded Library Files</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonDelExcludedLibraryFile">
+    <property name="geometry">
+     <rect>
+      <x>930</x>
+      <y>700</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>-</string>
     </property>
    </widget>
   </widget>

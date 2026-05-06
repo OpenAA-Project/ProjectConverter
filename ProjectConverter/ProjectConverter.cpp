@@ -116,6 +116,9 @@ bool    ProjectConverter::LoadSLN(const QString &SLNFileName,QStringList &ProjLi
 
 void ProjectConverter::on_pushButtonConvert_clicked()
 {
+	m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
+	m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
+
     m_unresolvedMacros.clear();
     for(int i=0;i<ProjectFileName.count();i++){
         QStringList RetUnresolvedMacros;
@@ -321,6 +324,9 @@ void ProjectConverter::on_pushButtonSaveNew_clicked()
 bool    ProjectConverter::SaveSettings(const QString &FileName)
 {
 	if(!FileName.isEmpty()) {
+	    m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
+	    m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
+
         // プロジェクト設定を保存する処理をここに実装
 		// 例: QFileを使ってFileNameに設定内容を書き込む
 		QFile file(FileName);
@@ -345,6 +351,18 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
             for(const QString &flag : additionalOptimizationFlags) {
                 out << flag << "\n";
             }
+
+            // 除外ライブラリ設定の保存
+            out << "[ExcludedLibraries]\n";
+            for(const QString &lib : excludedLibraryFiles) {
+                out << lib << "\n";
+            }
+
+            // 並列ビルド設定の保存
+            out << "[BuildSettings]\n";
+            out << "EnableParallelBuild=" << (m_enableParallelBuild ? "1" : "0") << "\n";
+            out << "MaxParallelBuilds=" << m_maxParallelBuilds << "\n";
+
             file.close();
 		}
 		FileNameToSettings = FileName;
@@ -405,6 +423,19 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
                         additionalLibraryDirs.append(line.replace("\\", "/"));
                     } else if (currentSection == "OptimizationFlags") {
                         additionalOptimizationFlags.append(line);
+                    // 除外ライブラリ設定の読み込み
+                    } else if (currentSection == "ExcludedLibraries") {
+                        excludedLibraryFiles.append(line);
+                    // 並列ビルド設定の読み込み
+                    } else if (currentSection == "BuildSettings") {
+                        QStringList parts = line.split('=');
+                        if (parts.size() == 2) {
+                            if (parts[0].trimmed() == "EnableParallelBuild") {
+                                m_enableParallelBuild = (parts[1].trimmed() == "1");
+                            } else if (parts[0].trimmed() == "MaxParallelBuilds") {
+                                m_maxParallelBuilds = parts[1].trimmed().toInt();
+                            }
+                        }
                     }
                 }
             }
@@ -412,13 +443,57 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
 
             FileNameToSettings = FileName;
             setWindowTitle(tr("Project Converter - %1").arg(QFileInfo(FileNameToSettings).fileName()));
+            
+            ui->checkBoxEnableParallelBuild->setChecked(m_enableParallelBuild);
+    	    ui->spinBoxMaxParallelBuilds->setValue(m_maxParallelBuilds);
+
             ShowMacro();
             ShowInclude();
             ShowLibrary();
             ShowOptimaze();
+            ShowExcludedLibraryFiles();
             return true;
         }
 	}
     return false;
+}
+
+
+void ProjectConverter::on_listWidgetExcludedLibraryFiles_itemDoubleClicked(QListWidgetItem *item)
+{
+    int row = ui->listWidgetExcludedLibraryFiles->currentRow();
+	QString lib = excludedLibraryFiles[row];
+    QString newLib = QInputDialog::getText(this, tr("Edit Excluded Library"), tr("Excluded Library File:"), QLineEdit::Normal, lib);
+    if (!newLib.isEmpty()) {
+        excludedLibraryFiles[row] = newLib;
+        ShowExcludedLibraryFiles();
+	}
+}
+
+
+void ProjectConverter::on_pushButtonAddExcludedLibraryFile_clicked()
+{
+    QString newLib = QInputDialog::getText(this, tr("Add Excluded Library"), tr("Excluded Library File:"));
+    if (!newLib.isEmpty()) {
+        excludedLibraryFiles.append(newLib);
+        ShowExcludedLibraryFiles();
+	}
+}
+
+
+void ProjectConverter::on_pushButtonDelExcludedLibraryFile_clicked()
+{
+    int row = ui->listWidgetExcludedLibraryFiles->currentRow();
+    if (row >= 0 && row < excludedLibraryFiles.count()) {
+        excludedLibraryFiles.removeAt(row);
+        ShowExcludedLibraryFiles();
+	}
+}
+void    ProjectConverter::ShowExcludedLibraryFiles(void)
+{
+    ui->listWidgetExcludedLibraryFiles->clear();
+    for(int i=0;i<excludedLibraryFiles.count();i++){
+        ui->listWidgetExcludedLibraryFiles->addItem(excludedLibraryFiles[i]);
+    }
 }
 

@@ -83,15 +83,21 @@ class ProjectConverter : public QMainWindow
 	QString     FileNameToSettings; // 設定の保存/読み込みに使用するファイル名
     mutable QSet<QString> m_unresolvedMacros;
 
+    bool m_enableParallelBuild = true;       // 並列ビルドを有効にするか
+    int  m_maxParallelBuilds = 0;            // 最大並列数 (0ならCMakeのデフォルト/無制限)
+
 public:
     ProjectConverter(const QString &SettingFileName ,QWidget *parent = nullptr);
     ~ProjectConverter();
 
     // 追加された機能の設定変数群
-    MatchingDimPack macroReplacements;       // 1: $()の置換リスト
+    MatchingDimPack macroReplacements;          // 1: $()の置換リスト
     QStringList additionalIncludeDirs;          // 2: 追加のincludeパス
     QStringList additionalLibraryDirs;          // 3: 追加のlibraryパス
     QStringList additionalOptimizationFlags;    // 4: 追加の最適化フラグ
+    
+    // 除外するライブラリファイル名のリスト
+    QStringList excludedLibraryFiles;
 
 private slots:
     void on_pushButtonFileName_clicked();
@@ -111,6 +117,10 @@ private slots:
     void on_pushButtonSaveNew_clicked();
     void on_pushButtonOverwrite_clicked();
     void on_pushButtonLoad_clicked();
+    void on_listWidgetExcludedLibraryFiles_itemDoubleClicked(QListWidgetItem *item);
+    void on_pushButtonAddExcludedLibraryFile_clicked();
+    void on_pushButtonDelExcludedLibraryFile_clicked();
+
 private:
     Ui::ProjectConverter *ui;
 
@@ -123,6 +133,7 @@ private:
 	void    ShowInclude(void);
 	void    ShowLibrary(void);
 	void    ShowOptimaze(void);
+    void    ShowExcludedLibraryFiles(void);
 
 	bool    SaveSettings(const QString &FileName);
 	bool    LoadSettings(const QString &FileName);
@@ -175,6 +186,9 @@ public:
     void setAdditionalLibraryDirs(const QStringList& dirs);
     void setAdditionalOptimizationFlags(const QStringList& flags) { m_additionalOptimizationFlags = flags; }
 
+    // 除外ライブラリのセッター
+    void setExcludedLibraryFiles(const QStringList& libs) { m_excludedLibraryFiles = libs; }
+
     // 未解決マクロを取得するゲッター
     QStringList getUnresolvedMacros() const { 
         QStringList list = m_unresolvedMacros.values();
@@ -213,6 +227,9 @@ private:
     QStringList m_additionalIncludeDirs;
     QStringList m_additionalLibraryDirs;
     QStringList m_additionalOptimizationFlags;
+
+    // 除外ライブラリ保持用
+    QStringList m_excludedLibraryFiles;
 
     // 置換できなかったマクロを記録するセット (const メソッドから変更できるよう mutable を指定)
     mutable QSet<QString> m_unresolvedMacros;

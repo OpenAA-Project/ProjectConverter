@@ -12,8 +12,10 @@ CopyFiles::CopyFiles(QString &_SettingFileName ,QWidget *parent)
 {
     ui.setupUi(this);
 
-    LoadSettings(SettingFileName);
-	setWindowTitle(tr("Copy Files - %1").arg(QFileInfo(SettingFileName).fileName()));
+    if(Load(SettingFileName)){
+	    setWindowTitle(tr("Copy Files - %1").arg(QFileInfo(SettingFileName).fileName()));
+    }
+    connect(this,SIGNAL(SignalCopyProgress(const QString &)),this,SLOT(SlotCopyProgress(const QString &)));
 }
 
 CopyFiles::~CopyFiles()
@@ -22,19 +24,22 @@ CopyFiles::~CopyFiles()
 
 void CopyFiles::on_pushButtonDestination_clicked()
 {
-    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Destination Directory"), QString(),
-		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    QString dir = QFileDialog::getExistingDirectory(this
+                                                , tr("Select Destination Directory")
+                                                , DestinationPath
+                                                , QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (!dir.isEmpty()) {
         DestinationPath = dir;
         ui.lineEditDestination->setText(DestinationPath);
 	}
 }
 
-
 void CopyFiles::on_pushButtonSource_clicked()
 {
-    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Source Directory"), QString(),
-        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    QString dir = QFileDialog::getExistingDirectory(this
+                                                , tr("Select Source Directory")
+                                                , SourthPath
+                                                , QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (!dir.isEmpty()) {
         SourthPath = dir;
         ui.lineEditSource->setText(SourthPath);
@@ -75,6 +80,16 @@ void CopyFiles::on_listWidgetFileName_itemDoubleClicked(QListWidgetItem *item)
 	
 bool    CopyFiles::SaveSettings(const QString &SettingFileName) const
 {
+    if(Save(SettingFileName)) {
+        return true;
+    } else {
+        QMessageBox::critical(NULL, tr("Error"), tr("Failed to save settings to %1").arg(SettingFileName));
+		return false;
+    }
+}
+
+bool    CopyFiles::Save(const QString &SettingFileName) const
+{
 	QFile file(SettingFileName);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
@@ -86,12 +101,22 @@ bool    CopyFiles::SaveSettings(const QString &SettingFileName) const
         }
         return true;
     } else {
-        QMessageBox::critical(NULL, tr("Error"), tr("Failed to save settings to %1").arg(SettingFileName));
+        
         return false;
 	}
 }
 
 bool	CopyFiles::LoadSettings(const QString &SettingFileName)
+{
+    if(Load(SettingFileName)) {
+        return true;
+    } else {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to load settings from %1").arg(SettingFileName));
+        return false;
+    }
+}
+
+bool	CopyFiles::Load(const QString &SettingFileName)
 {
     QFile file(SettingFileName);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -116,7 +141,6 @@ bool	CopyFiles::LoadSettings(const QString &SettingFileName)
         }
         return true;
     } else {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to load settings from %1").arg(SettingFileName));
         return false;
 	}
 }
@@ -124,7 +148,9 @@ bool	CopyFiles::LoadSettings(const QString &SettingFileName)
 
 void CopyFiles::on_pushButtonStartCopy_clicked()
 {
-    // �K�{���ڂ̃`�F�b�N
+    DestinationPath =ui.lineEditDestination ->text();
+    SourthPath      =ui.lineEditSource      ->text();
+
     if (SourthPath.isEmpty() || DestinationPath.isEmpty() || FileNameList.isEmpty()) {
         QMessageBox::warning(this, tr("Warning"), tr("Please specify source, destination and file names."));
         return;
@@ -163,13 +189,15 @@ void CopyFiles::on_pushButtonStartCopy_clicked()
         if (shouldCopy) {
             QDir targetDir(destPath);
             if (!targetDir.exists()) {
+				emit SignalCopyProgress(tr("Creating directory %1...").arg(destPath));
                 targetDir.mkpath(".");
             }
 
             if (destFileInfo.exists()) {
+				emit SignalCopyProgress(tr("Overwriting %1...").arg(destFileInfo.fileName()));
                 QFile::remove(destFilePath);
             }
-
+            emit SignalCopyProgress(tr("Copying %1...").arg(srcFileInfo.fileName()));
             if (QFile::copy(srcFilePath, destFilePath)) {
                 QStringList fileInfo;
                 fileInfo << relativePath << relativePath << srcFileInfo.fileName();
@@ -196,11 +224,14 @@ void CopyFiles::ShowResult()
 
 }
 
-
+void CopyFiles::SlotCopyProgress(const QString &message)
+{
+    ui.labelProgressiveMessage->setText(message);
+}
 
 void CopyFiles::on_pushButtonSaveNew_clicked()
 {
-	QString fileName = QFileDialog::getSaveFileName(this,tr("Save Settings"),QString(),tr("Settings Files (*.ini);;All Files (*.*)"));
+	QString fileName = QFileDialog::getSaveFileName(this,tr("Save Settings"),QString(),tr("Settings Files (*.dat);;All Files (*.*)"));
     if (!fileName.isEmpty()) {
         if (SaveSettings(fileName)) {
             SettingFileName = fileName;
@@ -225,7 +256,7 @@ void CopyFiles::on_pushButtonOverwrite_clicked()
 
 void CopyFiles::on_pushButtonLoad_clicked()
 {
-    QString fileName = QFileDialog::getOpenFileName(this,tr("Load Settings"),QString(),tr("Settings Files (*.ini);;All Files (*.*)"));
+    QString fileName = QFileDialog::getOpenFileName(this,tr("Load Settings"),QString(),tr("Settings Files (*.dat);;All Files (*.*)"));
     if (!fileName.isEmpty()) {
         if (LoadSettings(fileName)) {
             SettingFileName = fileName;

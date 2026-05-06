@@ -172,7 +172,7 @@
       <x>10</x>
       <y>180</y>
       <width>711</width>
-      <height>381</height>
+      <height>361</height>
      </rect>
     </property>
     <column>
@@ -228,6 +228,19 @@
     </property>
     <property name="text">
      <string>Load</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelProgressiveMessage">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>545</y>
+      <width>711</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Progress</string>
     </property>
    </widget>
   </widget>

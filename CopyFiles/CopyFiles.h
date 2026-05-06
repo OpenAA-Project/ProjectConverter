@@ -31,14 +31,16 @@ private slots:
     void on_listWidgetFileName_itemDoubleClicked(QListWidgetItem *item);
     void on_pushButtonStartCopy_clicked();
     void on_pushButtonSaveNew_clicked();
-
     void on_pushButtonOverwrite_clicked();
-
     void on_pushButtonLoad_clicked();
-
+	void SlotCopyProgress(const QString &message);
+signals:
+	void SignalCopyProgress(const QString &message);
 private:
     Ui::CopyFilesClass ui;
 
     void    ShowResult();
+    bool    Save(const QString &SettingFileName) const;
+	bool	Load(const QString &SettingFileName);
 };
 
