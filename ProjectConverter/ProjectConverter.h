@@ -44,7 +44,7 @@ public:
     {
         if (this != &src) {
             this->RemoveAll();
-            for (MatchingDim* item=GetFirst();item!=NULL;item=item->GetNext()) {
+            for (MatchingDim* item=src.GetFirst();item!=NULL;item=item->GetNext()) {
                 MatchingDim* newItem = new MatchingDim(*item);
                 this->AppendList(newItem);
             }
@@ -98,6 +98,7 @@ public:
     
     // 除外するライブラリファイル名のリスト
     QStringList excludedLibraryFiles;
+    QStringList additionalLibraryFiles;
 
 private slots:
     void on_pushButtonFileName_clicked();
@@ -120,6 +121,9 @@ private slots:
     void on_listWidgetExcludedLibraryFiles_itemDoubleClicked(QListWidgetItem *item);
     void on_pushButtonAddExcludedLibraryFile_clicked();
     void on_pushButtonDelExcludedLibraryFile_clicked();
+    void on_listWidgetAdditionalLibraryFiles_itemDoubleClicked(QListWidgetItem *item);
+    void on_pushButtonAddAdditionalLibraryFile_clicked();
+    void on_pushButtonDelAdditionalLibraryFile_clicked();
 
 private:
     Ui::ProjectConverter *ui;
@@ -134,9 +138,13 @@ private:
 	void    ShowLibrary(void);
 	void    ShowOptimaze(void);
     void    ShowExcludedLibraryFiles(void);
+    void    ShowAdditionalLibraryFiles(void);
 
+public:
 	bool    SaveSettings(const QString &FileName);
 	bool    LoadSettings(const QString &FileName);
+
+    bool    MakeCMakeFile(const QString &ProjectSlnFileName);
 };
 
 
@@ -165,6 +173,8 @@ struct VcxprojConfig {
     // リンカ設定
     QStringList libraryDirectories;
     QStringList additionalDependencies;
+
+    bool useOpenMP = false;
 };
 
 class VcxprojParser {
@@ -188,6 +198,7 @@ public:
 
     // 除外ライブラリのセッター
     void setExcludedLibraryFiles(const QStringList& libs) { m_excludedLibraryFiles = libs; }
+    void setAdditionalLibraryFiles(const QStringList& libs) { m_additionalLibraryFiles = libs; }
 
     // 未解決マクロを取得するゲッター
     QStringList getUnresolvedMacros() const { 
@@ -227,9 +238,8 @@ private:
     QStringList m_additionalIncludeDirs;
     QStringList m_additionalLibraryDirs;
     QStringList m_additionalOptimizationFlags;
-
-    // 除外ライブラリ保持用
     QStringList m_excludedLibraryFiles;
+    QStringList m_additionalLibraryFiles;
 
     // 置換できなかったマクロを記録するセット (const メソッドから変更できるよう mutable を指定)
     mutable QSet<QString> m_unresolvedMacros;
@@ -261,8 +271,9 @@ private:
     QString extractCondition(const QDomElement& element) const;
 
     // パスを CMake 形式 (スラッシュ区切り) に変換
-    QString toCMakePath(const QString& path) const;
-    QStringList toCMakePaths(const QStringList& paths) const;
+    QString toCMakePath(const QString& path, const QString& configType = QString()) const;
+    QStringList toCMakePaths(const QStringList& paths, const QString& configType = QString()) const;
+    QString applyMacroReplacements(const QString& str, const QString& configType = QString()) const;
 
     // マクロ置換処理
     QString applyMacroReplacements(const QString& str) const;

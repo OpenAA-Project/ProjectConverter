@@ -83,9 +83,28 @@ void ProjectConverter::on_pushButtonFileName_clicked()
         }
     }
 }
+bool    ProjectConverter::MakeCMakeFile(const QString &ProjectSlnFileName)
+{
+    QFileInfo   FInfo(ProjectSlnFileName);
+    if(FInfo.suffix().toUpper()==/**/"SLN"){
+        QStringList  ProjList;
+        if(LoadSLN(ProjectSlnFileName,ProjList)==true){
+            for(int j=0;j<ProjList.count();j++){
+                QString ProjFileName=ProjList[j];
+                ProjectFileName.append(ProjFileName);
+            }
+        }
+        SLNFiles.append(ProjectSlnFileName);
+    }
+    else
+    if(FInfo.suffix().toUpper()==/**/"VCXPROJ"){
+        ProjectFileName.append(ProjectSlnFileName);
+    }
+    on_pushButtonConvert_clicked();
+}
 
 
-bool    ProjectConverter::LoadSLN(const QString &SLNFileName,QStringList &ProjList)
+bool ProjectConverter::LoadSLN(const QString &SLNFileName, QStringList &ProjList)
 {
     QFile file(SLNFileName);
 
@@ -93,23 +112,66 @@ bool    ProjectConverter::LoadSLN(const QString &SLNFileName,QStringList &ProjLi
         return false;
     }
 
-    QFileInfo   SLNInfo(SLNFileName);
-	QString     SLNPath = SLNInfo.absolutePath();
+    QFileInfo SLNInfo(SLNFileName);
+    QString SLNPath = SLNInfo.absolutePath();
 
     QTextStream in(&file);
     in.setAutoDetectUnicode(true);  // UTF-8 BOM対応など
+    
     // 正規表現でProject行から .vcxproj を抽出
     QRegularExpression re("Project\\(\"[^\"]*\"\\)\\s*=\\s*\"[^\"]*\"\\s*,\\s*\"([^\"]*\\.vcxproj)\"");
 
+    QStringList tempProjList;
     while (!in.atEnd()) {
         QString line = in.readLine();
         QRegularExpressionMatch match = re.match(line);
         if (match.hasMatch()) {
-            ProjList << SLNPath+QDir::separator()+match.captured(1);
+            QString relPath = match.captured(1);
+            relPath.replace("\\", "/"); // スラッシュに統一してパス解決のエラーを防ぐ
+            tempProjList << SLNPath + "/" + relPath;
         }
     }
-    ProjList.removeDuplicates();
-    ProjList.sort();
+    tempProjList.removeDuplicates();
+    tempProjList.sort(); // アルファベット順で一旦ソート
+
+    // 静的ライブラリとそれ以外に分類するためのリスト
+    QStringList staticLibs;
+    QStringList otherProjs;
+
+    // <ConfigurationType>StaticLibrary</ConfigurationType> を確実に捕捉する正規表現
+    // （大文字小文字を区別せず、タグ内の不要な空白も許容する）
+    QRegularExpression reStatic("<ConfigurationType>\\s*StaticLibrary\\s*</ConfigurationType>", QRegularExpression::CaseInsensitiveOption);
+
+    for (int i = 0; i < tempProjList.count(); ++i) {
+        QString projFileName = tempProjList[i];
+        bool isStatic = false;
+
+        QFile vcxprojFile(projFileName);
+        // ファイルをテキストとして開き、正規表現で走査する（XMLのパースエラーや名前空間の影響を排除）
+        if (vcxprojFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream vcxprojIn(&vcxprojFile);
+            vcxprojIn.setAutoDetectUnicode(true);
+            QString content = vcxprojIn.readAll();
+            
+            if (content.contains(reStatic)) {
+                isStatic = true;
+            }
+            vcxprojFile.close();
+        } else {
+            qDebug() << "Failed to open project file for static check:" << projFileName;
+        }
+
+        // 分類してリストに追加
+        if (isStatic) {
+            staticLibs << projFileName;
+        } else {
+            otherProjs << projFileName;
+        }
+    }
+
+    // 静的ライブラリを先に、その後にそれ以外のプロジェクトを結合する
+    ProjList.clear();
+    ProjList << staticLibs << otherProjs;
 
     return true;
 }
@@ -357,7 +419,10 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
             for(const QString &lib : excludedLibraryFiles) {
                 out << lib << "\n";
             }
-
+            out << "[AdditionalLibraryFiles]\n";
+            for(const QString &lib : additionalLibraryFiles) {
+                out << lib << "\n";
+            }
             // 並列ビルド設定の保存
             out << "[BuildSettings]\n";
             out << "EnableParallelBuild=" << (m_enableParallelBuild ? "1" : "0") << "\n";
@@ -426,6 +491,9 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
                     // 除外ライブラリ設定の読み込み
                     } else if (currentSection == "ExcludedLibraries") {
                         excludedLibraryFiles.append(line);
+                    // 追加ライブラリファイル設定の読み込み
+                    } else if (currentSection == "AdditionalLibraryFiles") {
+                        additionalLibraryFiles.append(line);
                     // 並列ビルド設定の読み込み
                     } else if (currentSection == "BuildSettings") {
                         QStringList parts = line.split('=');
@@ -452,6 +520,7 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
             ShowLibrary();
             ShowOptimaze();
             ShowExcludedLibraryFiles();
+            ShowAdditionalLibraryFiles();
             return true;
         }
 	}
@@ -497,3 +566,39 @@ void    ProjectConverter::ShowExcludedLibraryFiles(void)
     }
 }
 
+void ProjectConverter::on_listWidgetAdditionalLibraryFiles_itemDoubleClicked(QListWidgetItem *item)
+{
+    int row = ui->listWidgetAdditionalLibraryFiles->currentRow();
+    QString lib = additionalLibraryFiles[row];
+    QString newLib = QInputDialog::getText(this, tr("Edit Additional Library File"), tr("Additional Library File:"), QLineEdit::Normal, lib);
+    if (!newLib.isEmpty()) {
+        additionalLibraryFiles[row] = newLib;
+        ShowAdditionalLibraryFiles();
+    }
+}
+
+void ProjectConverter::on_pushButtonAddAdditionalLibraryFile_clicked()
+{
+    QString newLib = QInputDialog::getText(this, tr("Add Additional Library File"), tr("Additional Library File:"));
+    if (!newLib.isEmpty()) {
+        additionalLibraryFiles.append(newLib);
+        ShowAdditionalLibraryFiles();
+    }
+}
+
+void ProjectConverter::on_pushButtonDelAdditionalLibraryFile_clicked()
+{
+    int row = ui->listWidgetAdditionalLibraryFiles->currentRow();
+    if (row >= 0 && row < additionalLibraryFiles.count()) {
+        additionalLibraryFiles.removeAt(row);
+        ShowAdditionalLibraryFiles();
+    }
+}
+
+void ProjectConverter::ShowAdditionalLibraryFiles(void)
+{
+    ui->listWidgetAdditionalLibraryFiles->clear();
+    for(int i=0;i<additionalLibraryFiles.count();i++){
+        ui->listWidgetAdditionalLibraryFiles->addItem(additionalLibraryFiles[i]);
+    }
+}

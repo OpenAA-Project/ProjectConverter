@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>972</width>
-    <height>1013</height>
+    <height>824</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>959</y>
+      <y>779</y>
       <width>141</width>
       <height>31</height>
      </rect>
@@ -118,7 +118,7 @@
      <rect>
       <x>10</x>
       <y>240</y>
-      <width>911</width>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
@@ -137,7 +137,7 @@
      <rect>
       <x>10</x>
       <y>270</y>
-      <width>911</width>
+      <width>391</width>
       <height>141</height>
      </rect>
     </property>
@@ -145,9 +145,9 @@
    <widget class="QLabel" name="label_4">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>420</y>
-      <width>911</width>
+      <x>530</x>
+      <y>240</y>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
@@ -164,9 +164,9 @@
    <widget class="QListWidget" name="listWidgetLibrary">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>450</y>
-      <width>911</width>
+      <x>530</x>
+      <y>270</y>
+      <width>391</width>
       <height>141</height>
      </rect>
     </property>
@@ -175,7 +175,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>780</y>
+      <y>600</y>
       <width>911</width>
       <height>31</height>
      </rect>
@@ -194,7 +194,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>809</y>
+      <y>629</y>
       <width>911</width>
       <height>141</height>
      </rect>
@@ -230,7 +230,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>480</y>
+      <y>290</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -243,7 +243,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>520</y>
+      <y>330</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -255,8 +255,8 @@
    <widget class="QPushButton" name="pushButtonDelInclude">
     <property name="geometry">
      <rect>
-      <x>930</x>
-      <y>340</y>
+      <x>410</x>
+      <y>330</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -268,8 +268,8 @@
    <widget class="QPushButton" name="pushButtonAddInclude">
     <property name="geometry">
      <rect>
-      <x>930</x>
-      <y>300</y>
+      <x>410</x>
+      <y>290</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -282,7 +282,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>879</y>
+      <y>699</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -295,7 +295,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>839</y>
+      <y>659</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -308,7 +308,7 @@
     <property name="geometry">
      <rect>
       <x>630</x>
-      <y>959</y>
+      <y>779</y>
       <width>91</width>
       <height>31</height>
      </rect>
@@ -321,7 +321,7 @@
     <property name="geometry">
      <rect>
       <x>730</x>
-      <y>959</y>
+      <y>779</y>
       <width>91</width>
       <height>31</height>
      </rect>
@@ -334,7 +334,7 @@
     <property name="geometry">
      <rect>
       <x>830</x>
-      <y>959</y>
+      <y>779</y>
       <width>91</width>
       <height>31</height>
      </rect>
@@ -347,7 +347,7 @@
     <property name="geometry">
      <rect>
       <x>190</x>
-      <y>964</y>
+      <y>784</y>
       <width>131</width>
       <height>21</height>
      </rect>
@@ -360,7 +360,7 @@
     <property name="geometry">
      <rect>
       <x>330</x>
-      <y>960</y>
+      <y>780</y>
       <width>111</width>
       <height>31</height>
      </rect>
@@ -372,9 +372,9 @@
    <widget class="QListWidget" name="listWidgetExcludedLibraryFiles">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>630</y>
-      <width>911</width>
+      <x>530</x>
+      <y>450</y>
+      <width>391</width>
       <height>141</height>
      </rect>
     </property>
@@ -383,7 +383,7 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>660</y>
+      <y>480</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -395,9 +395,9 @@
    <widget class="QLabel" name="label_6">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>600</y>
-      <width>911</width>
+      <x>530</x>
+      <y>420</y>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
@@ -415,7 +415,62 @@
     <property name="geometry">
      <rect>
       <x>930</x>
-      <y>700</y>
+      <y>520</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>-</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_7">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>420</y>
+      <width>391</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::Panel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Sunken</enum>
+    </property>
+    <property name="text">
+     <string>Additional Library Files</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonAddAdditionalLibraryFile">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>480</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>+</string>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="listWidgetAdditionalLibraryFiles">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>450</y>
+      <width>391</width>
+      <height>141</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonDelAdditionalLibraryFile">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>520</y>
       <width>31</width>
       <height>31</height>
      </rect>
