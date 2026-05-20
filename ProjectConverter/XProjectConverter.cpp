@@ -624,6 +624,7 @@ void VcxprojParser::appendProject(QString& content) const {
     ss << "project(" << m_projectName << " LANGUAGES CXX)\n\n";
     ss << "set(CMAKE_CXX_STANDARD 17)\n";
     ss << "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n";
+    ss << "set(CMAKE_POSITION_INDEPENDENT_CODE ON)\n";
     ss << "set(CMAKE_AUTOMOC ON)\n";
     ss << "set(CMAKE_AUTORCC ON)\n";
     ss << "set(CMAKE_AUTOUIC ON)\n\n";
@@ -986,6 +987,10 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                         QString libBaseName = QFileInfo(lib).completeBaseName();
                         if (libBaseName.startsWith("Qt", Qt::CaseInsensitive)) continue;
 
+                        if (libBaseName.compare(m_projectName, Qt::CaseInsensitive) == 0 ||
+                            libBaseName.compare("lib" + m_projectName, Qt::CaseInsensitive) == 0) {
+                            continue;
+                        }
                         QString lowerLib = libBaseName.toLower();
                         if (lowerLib.startsWith("opengl32") || lowerLib.startsWith("glu32") ||
                             lowerLib.startsWith("glfw") || lowerLib.startsWith("glew")) {
@@ -1067,26 +1072,69 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                 QString sharedVar = safeName + "_SHARED_LIB_" + safeConfig;
                 QString finalVar = safeName + "_FINAL_LIB_" + safeConfig;
 
+                if (coreName == "z" || coreName == "pthread" || coreName == "m" || coreName == "dl" || coreName == "rt") {
+                    ss << "    # --- System Library Linking for " << coreName << " (" << configType << ") ---\n";
+                    ss << "    set(" << finalVar << " " << coreName << ")\n\n";
+                    unixLibVars.append("${" + finalVar + "}");
+                    continue;
+                }
                 QString pathsArg = "";
                 if (!dir.isEmpty()) {
                     pathsArg = " PATHS \"" + dir + "\" NO_DEFAULT_PATH";
                 }
 
-                ss << "    # --- Dynamic Library Linking for " << coreName << " (" << configType << ") ---\n";
-                ss << "    # 1. First, search for the shared library (.so)\n";
-                ss << "    find_library(" << sharedVar << " NAMES " << coreName << pathsArg << ")\n";
-                ss << "    if(" << sharedVar << ")\n";
-                ss << "        set(" << finalVar << " ${" << sharedVar << "})\n";
-                ss << "    else()\n";
-                ss << "        # 2. If not found, search for the static library (.a)\n";
-                ss << "        find_library(" << staticVar << " NAMES lib" << coreName << ".a" << pathsArg << ")\n";
-                ss << "        if(" << staticVar << ")\n";
-                ss << "            set(" << finalVar << " ${" << staticVar << "})\n";
-                ss << "        else()\n";
-                ss << "            # Fallback if not found (e.g. system library)\n";
-                ss << "            set(" << finalVar << " " << coreName << ")\n";
-                ss << "        endif()\n";
-                ss << "    endif()\n\n";
+                if (coreName.startsWith("tesseract", Qt::CaseInsensitive)) {
+                    ss << "    # --- PkgConfig for Tesseract (" << configType << ") ---\n";
+                    ss << "    find_package(PkgConfig REQUIRED)\n";
+                    ss << "    pkg_check_modules(TESSERACT_" << safeConfig << " REQUIRED tesseract)\n";
+                    ss << "    if(TESSERACT_" << safeConfig << "_FOUND)\n";
+                    ss << "        target_link_directories(${PROJECT_NAME} PRIVATE ${TESSERACT_" << safeConfig << "_LIBRARY_DIRS})\n";
+                    ss << "    else()\n";
+                    ss << "        message(WARNING \"Tesseract not found via pkg-config!\")\n";
+                    ss << "    endif()\n\n";
+                    unixLibVars.append("${TESSERACT_" + safeConfig + "_LIBRARIES}");
+                    continue;
+                }
+
+                if (m_modeDynamicLink) {
+                    ss << "    # --- Dynamic Library Linking for " << coreName << " (" << configType << ") ---\n";
+                    ss << "    # 1. First, search for the shared library (.so)\n";
+                    ss << "    find_library(" << sharedVar << " NAMES " << coreName << pathsArg << ")\n";
+                    ss << "    if(" << sharedVar << ")\n";
+                    ss << "        set(" << finalVar << " ${" << sharedVar << "})\n";
+                    ss << "    else()\n";
+                    ss << "        # 2. If not found, search for the static library (.a)\n";
+                    ss << "        find_library(" << staticVar << " NAMES lib" << coreName << ".a" << pathsArg << ")\n";
+                    ss << "        if(" << staticVar << ")\n";
+                    ss << "            set(" << finalVar << " ${" << staticVar << "})\n";
+                    ss << "        else()\n";
+                    ss << "            # Fallback if not found (e.g. system library)\n";
+                    ss << "            set(" << finalVar << " " << coreName << ")\n";
+                    ss << "        endif()\n";
+                    ss << "    endif()\n\n";
+                } else {
+                    QString searchName;
+                    // Windows特有の .lib は無視して Linux向けの .a に変換する
+                    if (!fi.suffix().isEmpty() && fi.suffix().compare("lib", Qt::CaseInsensitive) != 0) {
+                        searchName = fi.fileName(); // 拡張子がある場合は元のファイル名を使用
+                    } else {
+                        searchName = "lib" + coreName + ".a"; // ない場合は.aを付与
+                    }
+
+                    ss << "    # --- Exact/Static Library Linking for " << coreName << " (" << configType << ") ---\n";
+                    ss << "    # 1. Search for the exact library or static library\n";
+                    ss << "    find_library(" << staticVar << " NAMES \"" << searchName << "\"" << pathsArg << ")\n";
+                    ss << "    if(" << staticVar << ")\n";
+                    ss << "        set(" << finalVar << " ${" << staticVar << "})\n";
+                    ss << "    else()\n";
+                    ss << "        # Fallback if not found (e.g. system library)\n";
+                    if (!fi.suffix().isEmpty() && fi.suffix().compare("lib", Qt::CaseInsensitive) != 0) {
+                        ss << "        set(" << finalVar << " \"" << fi.fileName() << "\")\n";
+                    } else {
+                        ss << "        set(" << finalVar << " " << coreName << ")\n";
+                    }
+                    ss << "    endif()\n\n";
+                }
 
                 unixLibVars.append("${" + finalVar + "}");
             }
@@ -1176,6 +1224,8 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
     if (!m_additionalLibraryFiles.isEmpty()) {
         // ライブラリのコア名ごとにディレクトリパスをグルーピングする
         QMap<QString, QStringList> libDirGroups;
+        QMap<QString, QString> libFileNames; // 拡張子判定のために元のファイル名を保持するマップ
+
         for (const QString& lib : m_additionalLibraryFiles) {
             QString cmakePath = toCMakePath(lib);
             QFileInfo fi(cmakePath);
@@ -1206,11 +1256,34 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
                 // ディレクトリ指定がない場合も一応ダミーで登録（システムパス検索のため）
                 libDirGroups[coreName].append("");
             }
+            
+            // 元のファイル名を記録 (最初に登場したもの)
+            if (!libFileNames.contains(coreName)) {
+                libFileNames[coreName] = fi.fileName();
+            }
         }
 
         for (auto it = libDirGroups.begin(); it != libDirGroups.end(); ++it) {
             QString coreName = it.key();
+
+            // 自身（プロジェクト名）と同じ名前のライブラリは追加設定からも除外（自己参照の防止）
+            if (coreName.compare(m_projectName, Qt::CaseInsensitive) == 0) {
+                continue;
+            }
+
+            // ▼▼▼ 追加箇所: システムライブラリの場合は探索をスキップして直接リンク ▼▼▼
+            // (z の他に、Linuxで頻出する pthread, m(math), dl, rt も念のため登録しておきます)
+            if (coreName == "z" || coreName == "pthread" || coreName == "m" || coreName == "dl" || coreName == "rt") {
+                ss << "    # --- System Library Linking for " << coreName << " ---\n";
+                ss << "    target_link_libraries(${PROJECT_NAME} PRIVATE " << coreName << ")\n\n";
+                continue;
+            }
+            // ▲▲▲ 追加箇所 ここまで ▲▲▲
+
             QStringList dirs = it.value();
+
+            QString exactFileName = libFileNames[coreName];
+            QFileInfo exactFi(exactFileName);
 
             // 変数名を生成
             QString varName = coreName.toUpper();
@@ -1234,23 +1307,61 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
                 findSuffix = " NO_DEFAULT_PATH";
             }
 
-            ss << "    # --- Dynamic Library Linking for " << coreName << " ---\n";
-            ss << "    # 1. First, search for the shared library (.so)\n";
-            ss << "    find_library(" << sharedVar << " NAMES " << coreName << pathsArg << ")\n\n";
-            
-            ss << "    if(" << sharedVar << ")\n";
-            ss << "        message(STATUS \"Found Shared Library: ${" << sharedVar << "}\")\n";
-            ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE ${" << sharedVar << "})\n";
-            ss << "    else()\n";
-            ss << "        # 2. If not found, search for the static library (.a)\n";
-            ss << "        find_library(" << staticVar << " NAMES lib" << coreName << ".a" << pathsArg << ")\n";
-            ss << "        if(" << staticVar << ")\n";
-            ss << "            message(STATUS \"Found Static Library: ${" << staticVar << "}\")\n";
-            ss << "            target_link_libraries(${PROJECT_NAME} PRIVATE ${" << staticVar << "})\n";
-            ss << "        else()\n";
-            ss << "            message(WARNING \"Library " << coreName << " not found!\")\n";
-            ss << "        endif()\n";
-            ss << "    endif()\n\n";
+            if (coreName.startsWith("tesseract", Qt::CaseInsensitive)) {
+                ss << "    # --- PkgConfig for Tesseract ---\n";
+                ss << "    find_package(PkgConfig REQUIRED)\n";
+                ss << "    pkg_check_modules(TESSERACT REQUIRED tesseract)\n";
+                ss << "    if(TESSERACT_FOUND)\n";
+                ss << "        target_link_directories(${PROJECT_NAME} PRIVATE ${TESSERACT_LIBRARY_DIRS})\n";
+                ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE ${TESSERACT_LIBRARIES})\n";
+                ss << "    else()\n";
+                ss << "        message(WARNING \"Tesseract not found via pkg-config!\")\n";
+                ss << "    endif()\n\n";
+                continue;
+            }
+
+            if (m_modeDynamicLink) {
+                ss << "    # --- Dynamic Library Linking for " << coreName << " ---\n";
+                ss << "    # 1. First, search for the shared library (.so)\n";
+                ss << "    find_library(" << sharedVar << " NAMES " << coreName << pathsArg << ")\n\n";
+                
+                ss << "    if(" << sharedVar << ")\n";
+                ss << "        message(STATUS \"Found Shared Library: ${" << sharedVar << "}\")\n";
+                ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE ${" << sharedVar << "})\n";
+                ss << "    else()\n";
+                ss << "        # 2. If not found, search for the static library (.a)\n";
+                ss << "        find_library(" << staticVar << " NAMES lib" << coreName << ".a" << pathsArg << ")\n";
+                ss << "        if(" << staticVar << ")\n";
+                ss << "            message(STATUS \"Found Static Library: ${" << staticVar << "}\")\n";
+                ss << "            target_link_libraries(${PROJECT_NAME} PRIVATE ${" << staticVar << "})\n";
+                ss << "        else()\n";
+                ss << "            message(WARNING \"Library " << coreName << " not found!\")\n";
+                ss << "        endif()\n";
+                ss << "    endif()\n\n";
+            } else {
+                // 拡張子が含まれているか判定して検索ファイル名を決定
+                QString searchName;
+                if (!exactFi.suffix().isEmpty() && exactFi.suffix().compare("lib", Qt::CaseInsensitive) != 0) {
+                    searchName = exactFileName;
+                } else {
+                    searchName = "lib" + coreName + ".a";
+                }
+
+                ss << "    # --- Exact/Static Library Linking for " << coreName << " ---\n";
+                ss << "    find_library(" << staticVar << " NAMES \"" << searchName << "\"" << pathsArg << ")\n\n";
+                
+                ss << "    if(" << staticVar << ")\n";
+                ss << "        message(STATUS \"Found Exact/Static Library: ${" << staticVar << "}\")\n";
+                ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE ${" << staticVar << "})\n";
+                ss << "    else()\n";
+                ss << "        message(WARNING \"Library " << searchName << " not found! Fallback to default linking.\")\n";
+                if (!exactFi.suffix().isEmpty() && exactFi.suffix().compare("lib", Qt::CaseInsensitive) != 0) {
+                    ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE \"" << exactFileName << "\")\n";
+                } else {
+                    ss << "        target_link_libraries(${PROJECT_NAME} PRIVATE " << coreName << ")\n";
+                }
+                ss << "    endif()\n\n";
+            }
         }
     }
 }
@@ -1319,6 +1430,7 @@ bool ProjectConverter::CreateCMakeFile(const QString &ProjFileName,QStringList &
 
     vcxprojParser.setExcludedLibraryFiles(this->excludedLibraryFiles);
     vcxprojParser.setAdditionalLibraryFiles(this->additionalLibraryFiles);
+    vcxprojParser.setModeDynamicLink(this->ModeDynamicLink);
 
     if (!vcxprojParser.parse()) {
         return false; 

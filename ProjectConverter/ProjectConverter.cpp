@@ -101,6 +101,7 @@ bool    ProjectConverter::MakeCMakeFile(const QString &ProjectSlnFileName)
         ProjectFileName.append(ProjectSlnFileName);
     }
     on_pushButtonConvert_clicked();
+	return true;
 }
 
 
@@ -180,6 +181,7 @@ void ProjectConverter::on_pushButtonConvert_clicked()
 {
 	m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
 	m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
+	ModeDynamicLink = ui->checkBoxModeDynamicLink->isChecked();
 
     m_unresolvedMacros.clear();
     for(int i=0;i<ProjectFileName.count();i++){
@@ -388,6 +390,7 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
 	if(!FileName.isEmpty()) {
 	    m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
 	    m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
+		ModeDynamicLink = ui->checkBoxModeDynamicLink->isChecked();
 
         // プロジェクト設定を保存する処理をここに実装
 		// 例: QFileを使ってFileNameに設定内容を書き込む
@@ -427,6 +430,8 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
             out << "[BuildSettings]\n";
             out << "EnableParallelBuild=" << (m_enableParallelBuild ? "1" : "0") << "\n";
             out << "MaxParallelBuilds=" << m_maxParallelBuilds << "\n";
+
+			out << "ModeDynamicLink=" << (ModeDynamicLink ? "1" : "0") << "\n";
 
             file.close();
 		}
@@ -502,6 +507,8 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
                                 m_enableParallelBuild = (parts[1].trimmed() == "1");
                             } else if (parts[0].trimmed() == "MaxParallelBuilds") {
                                 m_maxParallelBuilds = parts[1].trimmed().toInt();
+                            } else if (parts[0].trimmed() == "ModeDynamicLink") {
+								ModeDynamicLink = (parts[1].trimmed() == "1");
                             }
                         }
                     }
@@ -514,6 +521,7 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
             
             ui->checkBoxEnableParallelBuild->setChecked(m_enableParallelBuild);
     	    ui->spinBoxMaxParallelBuilds->setValue(m_maxParallelBuilds);
+			ui->checkBoxModeDynamicLink->setChecked(ModeDynamicLink);
 
             ShowMacro();
             ShowInclude();

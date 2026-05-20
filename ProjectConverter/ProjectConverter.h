@@ -100,6 +100,8 @@ public:
     QStringList excludedLibraryFiles;
     QStringList additionalLibraryFiles;
 
+    bool    ModeDynamicLink =true;
+
 private slots:
     void on_pushButtonFileName_clicked();
     void on_pushButtonConvert_clicked();
@@ -200,6 +202,8 @@ public:
     void setExcludedLibraryFiles(const QStringList& libs) { m_excludedLibraryFiles = libs; }
     void setAdditionalLibraryFiles(const QStringList& libs) { m_additionalLibraryFiles = libs; }
 
+    void setModeDynamicLink(bool mode)                  { m_modeDynamicLink = mode; }
+
     // 未解決マクロを取得するゲッター
     QStringList getUnresolvedMacros() const { 
         QStringList list = m_unresolvedMacros.values();
@@ -240,6 +244,8 @@ private:
     QStringList m_additionalOptimizationFlags;
     QStringList m_excludedLibraryFiles;
     QStringList m_additionalLibraryFiles;
+
+    bool m_modeDynamicLink = true;
 
     // 置換できなかったマクロを記録するセット (const メソッドから変更できるよう mutable を指定)
     mutable QSet<QString> m_unresolvedMacros;
