@@ -63,6 +63,23 @@ bool VcxprojParser::parse() {
         return false;
     }
 
+    bool hasLinkFree = false;
+    for (const VcxprojConfig& config : m_configs.values()) {
+        for (const QString& def : config.preprocessorDefinitions) {
+            // 大文字小文字を区別せずに "LINKFREE" と完全に一致するか確認
+            if (def.trimmed().compare("LINKFREE", Qt::CaseInsensitive) == 0) {
+                hasLinkFree = true;
+                break;
+            }
+        }
+        if (hasLinkFree) break;
+    }
+
+    if (hasLinkFree) {
+        // オプションリストから対象の文字列を除外する（ダブルクォーテーション有無の両方に対応）
+        m_additionalLinkOptimizations.removeAll("-Wl,--no-undefined");
+        m_additionalLinkOptimizations.removeAll("\"-Wl,--no-undefined\"");
+    }
     return true;
 }
 
@@ -524,11 +541,19 @@ QString VcxprojParser::generateCMakeLists() const
     QString content;
     QTextStream ss(&content);
 
-    bool hasOpenMP = false;
+    bool hasOpenMP = m_forceOpenMP;
     bool useGL = false;
     bool useGLU = false;
     bool useGlfw = false;
     bool useGlew = false;
+    bool usePNG = false;
+
+    for (const QString& lib : m_additionalLibraryFiles) {
+        if (lib.compare("PNG::PNG", Qt::CaseInsensitive) == 0) {
+            usePNG = true;
+            break;
+        }
+    }
 
     // プロジェクトの依存ライブラリを走査して OpenGL/GLFW/GLEW の使用を判定
     for (const VcxprojConfig& config : m_configs.values()) {
@@ -553,12 +578,13 @@ QString VcxprojParser::generateCMakeLists() const
         appendQtSetup(content);
     }
 
-    // --- 追加: OpenGL / GLFW / GLEW の検索 ---
-    if (useGL || useGlfw || useGlew) {
+    // --- 追加: OpenGL / GLFW / GLEW / PNG の検索 ---
+    if (useGL || useGlfw || useGlew || usePNG) {
         ss << "# Find OpenGL / GLFW / GLEW\n";
         if (useGL) ss << "find_package(OpenGL REQUIRED)\n";
         if (useGlfw) ss << "find_package(glfw3 REQUIRED)\n";
         if (useGlew) ss << "find_package(GLEW REQUIRED)\n";
+        if (usePNG) ss << "find_package(PNG REQUIRED)\n";
         ss << "\n";
     }
 
@@ -570,28 +596,29 @@ QString VcxprojParser::generateCMakeLists() const
     appendFileLists(content);
     
     appendTarget(content);
-
-    // --- 追加: OpenGL / GLFW / GLEW のリンク ---
-    if (useGL || useGlfw || useGlew) {
-        ss << "# Link OpenGL / GLFW / GLEW\n";
-        ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
-        if (useGL) ss << "    OpenGL::GL\n";
-        if (useGLU) ss << "    OpenGL::GLU\n";
-        if (useGlfw) ss << "    glfw\n";
-        if (useGlew) ss << "    GLEW::GLEW\n";
-        ss << ")\n\n";
-    }
-
-    if (hasOpenMP) {
-        ss << "# Link OpenMP\n";
-        ss << "target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)\n\n";
-    }
     
     appendTargetProperties(content);
 
     // --- 追加のInclude, Lib, 構成オプションを出力 ---
     appendAdditionalSettings(content);
 
+    // --- 追加: OpenGL / GLFW / GLEW / PNG のリンク ---
+    if (useGL || useGlfw || useGlew || usePNG) {
+        ss << "# Link OpenGL / GLFW / GLEW\n";
+        ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
+        if (useGL) ss << "    OpenGL::GL\n";
+        if (useGLU) ss << "    OpenGL::GLU\n";
+        if (useGlfw) ss << "    glfw\n";
+        if (useGlew) ss << "    GLEW::GLEW\n";
+        if (usePNG) ss << "    PNG::PNG\n";
+        ss << ")\n\n";
+    }
+ 
+    if (hasOpenMP) {
+        ss << "# Link OpenMP\n";
+        ss << "target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)\n\n";
+    }
+  
     // ▼ 未解決マクロがある場合、CMakeLists.txt の末尾に警告コメントとして出力
     QStringList unresolvedList = getUnresolvedMacros();
     if (!unresolvedList.isEmpty()) {
@@ -824,7 +851,7 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         }
         processedConfigs.insert(configType);
 
-        // ★修正: 対象の構成（Debug等）に x64 プラットフォームが存在するかチェックする
+        //対象の構成（Debug等）に x64 プラットフォームが存在するかチェックする
         bool hasX64 = false;
         for (const VcxprojConfig& cfg : m_configs.values()) {
             if (cfg.configType == configType && cfg.platform.compare("x64", Qt::CaseInsensitive) == 0) {
@@ -1063,6 +1090,10 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                     coreName = coreName.left(dotIdx);
                 }
                 
+                if (coreName.compare("JPeg", Qt::CaseInsensitive) == 0) {
+                    coreName = "jpeg";
+                }
+
                 QString safeName = coreName.toUpper();
                 safeName.replace(QRegularExpression("[^A-Z0-9]"), "_");
                 QString safeConfig = configType.toUpper();
@@ -1190,7 +1221,11 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
 
 // 追加設定情報をファイルに出力
 void VcxprojParser::appendAdditionalSettings(QString& content) const {
-    if (m_additionalIncludeDirs.isEmpty() && m_additionalLibraryDirs.isEmpty() && m_additionalOptimizationFlags.isEmpty() && m_additionalLibraryFiles.isEmpty()) {
+    if (m_additionalIncludeDirs.isEmpty() && 
+        m_additionalLibraryDirs.isEmpty() && 
+        m_additionalOptimizationFlags.isEmpty() && 
+        m_additionalLibraryFiles.isEmpty() && 
+        m_additionalLinkOptimizations.isEmpty()) {
         return; 
     }
 
@@ -1220,13 +1255,28 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
         }
         ss << ")\n\n";
     }
-
+    if (!m_additionalLinkOptimizations.isEmpty()) {
+        ss << "target_link_options(${PROJECT_NAME} PRIVATE\n";
+        for (const QString& opt : m_additionalLinkOptimizations) {
+            QString cleanOpt = opt.trimmed();
+            // すでにダブルクォーテーションで囲まれていない場合のみ囲んで出力する
+            if (!cleanOpt.startsWith("\"")) {
+                ss << "    \"" << cleanOpt << "\"\n";
+            } else {
+                ss << "    " << cleanOpt << "\n";
+            }
+        }
+        ss << ")\n\n";
+    }
     if (!m_additionalLibraryFiles.isEmpty()) {
         // ライブラリのコア名ごとにディレクトリパスをグルーピングする
         QMap<QString, QStringList> libDirGroups;
         QMap<QString, QString> libFileNames; // 拡張子判定のために元のファイル名を保持するマップ
 
         for (const QString& lib : m_additionalLibraryFiles) {
+            if (lib.compare("PNG::PNG", Qt::CaseInsensitive) == 0) {
+                continue;
+            }
             QString cmakePath = toCMakePath(lib);
             QFileInfo fi(cmakePath);
             QString dir = fi.path();
@@ -1241,7 +1291,7 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
 
             QString baseName = fi.completeBaseName();
             QString coreName = baseName;
-            if (coreName.startsWith("lib")) {
+            if (coreName.startsWith("lib", Qt::CaseInsensitive)) {
                 coreName = coreName.mid(3);
             }
             // 拡張子が重なっている場合（.so.1 など）を考慮してドット以降をさらに除去
@@ -1249,7 +1299,9 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
             if (dotIdx != -1) {
                 coreName = coreName.left(dotIdx);
             }
-
+            if (coreName.compare("JPeg", Qt::CaseInsensitive) == 0) {
+                coreName = "jpeg";
+            }
             if (!dir.isEmpty() && !libDirGroups[coreName].contains(dir)) {
                 libDirGroups[coreName].append(dir);
             } else if (dir.isEmpty() && !libDirGroups[coreName].contains("")) {
@@ -1427,10 +1479,12 @@ bool ProjectConverter::CreateCMakeFile(const QString &ProjFileName,QStringList &
     vcxprojParser.setAdditionalIncludeDirs(this->additionalIncludeDirs);
     vcxprojParser.setAdditionalLibraryDirs(this->additionalLibraryDirs);
     vcxprojParser.setAdditionalOptimizationFlags(this->additionalOptimizationFlags);
+    vcxprojParser.setAdditionalLinkOptimizations(this->additionalLinkOptimizations);
 
     vcxprojParser.setExcludedLibraryFiles(this->excludedLibraryFiles);
     vcxprojParser.setAdditionalLibraryFiles(this->additionalLibraryFiles);
     vcxprojParser.setModeDynamicLink(this->ModeDynamicLink);
+    vcxprojParser.setForceOpenMP    (this->ForceOpenMP);
 
     if (!vcxprojParser.parse()) {
         return false; 
@@ -1586,7 +1640,7 @@ bool ProjectConverter::CreateRootCMakeFile(const QString &SLNFileName)
                     buildCommand += " --parallel";
                 }
             }
-            buildCommand += "\n";
+            buildCommand += " -- -k\n";
             out << buildCommand;
             
             out << "    WORKING_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}\"\n";

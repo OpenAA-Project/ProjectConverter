@@ -1,3 +1,0 @@
-"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\ProjectConverter.dir/objects.a
-C:\Qt\Qt6.9.2\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\ProjectConverter.dir/objects.a @CMakeFiles\ProjectConverter.dir\objects1.rsp
-C:\Qt\Qt6.9.2\Tools\mingw1310_64\bin\g++.exe -DQT_QML_DEBUG -g -mwindows -Wl,--whole-archive CMakeFiles\ProjectConverter.dir/objects.a -Wl,--no-whole-archive -o ProjectConverter.exe -Wl,--out-implib,libProjectConverter.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\ProjectConverter.dir\linkLibs.rsp

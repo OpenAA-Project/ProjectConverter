@@ -95,12 +95,14 @@ public:
     QStringList additionalIncludeDirs;          // 2: 追加のincludeパス
     QStringList additionalLibraryDirs;          // 3: 追加のlibraryパス
     QStringList additionalOptimizationFlags;    // 4: 追加の最適化フラグ
+    QStringList additionalLinkOptimizations;
     
     // 除外するライブラリファイル名のリスト
     QStringList excludedLibraryFiles;
     QStringList additionalLibraryFiles;
 
     bool    ModeDynamicLink =true;
+    bool    ForceOpenMP     =true;
 
 private slots:
     void on_pushButtonFileName_clicked();
@@ -126,6 +128,9 @@ private slots:
     void on_listWidgetAdditionalLibraryFiles_itemDoubleClicked(QListWidgetItem *item);
     void on_pushButtonAddAdditionalLibraryFile_clicked();
     void on_pushButtonDelAdditionalLibraryFile_clicked();
+    void on_listWidgetLinkOptions_itemDoubleClicked(QListWidgetItem *item);
+    void on_pushButtonAddLinkOptions_clicked();
+    void on_pushButtonDelLinkOptions_clicked();
 
 private:
     Ui::ProjectConverter *ui;
@@ -139,6 +144,7 @@ private:
 	void    ShowInclude(void);
 	void    ShowLibrary(void);
 	void    ShowOptimaze(void);
+    void    ShowLinkOptions (void);
     void    ShowExcludedLibraryFiles(void);
     void    ShowAdditionalLibraryFiles(void);
 
@@ -197,12 +203,14 @@ public:
     void setAdditionalIncludeDirs(const QStringList& dirs);
     void setAdditionalLibraryDirs(const QStringList& dirs);
     void setAdditionalOptimizationFlags(const QStringList& flags) { m_additionalOptimizationFlags = flags; }
+    void setAdditionalLinkOptimizations(const QStringList& flags) { m_additionalLinkOptimizations = flags; }
 
     // 除外ライブラリのセッター
     void setExcludedLibraryFiles(const QStringList& libs) { m_excludedLibraryFiles = libs; }
     void setAdditionalLibraryFiles(const QStringList& libs) { m_additionalLibraryFiles = libs; }
 
     void setModeDynamicLink(bool mode)                  { m_modeDynamicLink = mode; }
+    void setForceOpenMP(bool force)                     { m_forceOpenMP = force; }
 
     // 未解決マクロを取得するゲッター
     QStringList getUnresolvedMacros() const { 
@@ -242,10 +250,12 @@ private:
     QStringList m_additionalIncludeDirs;
     QStringList m_additionalLibraryDirs;
     QStringList m_additionalOptimizationFlags;
+    QStringList m_additionalLinkOptimizations;
     QStringList m_excludedLibraryFiles;
     QStringList m_additionalLibraryFiles;
 
     bool m_modeDynamicLink = true;
+    bool m_forceOpenMP = true;
 
     // 置換できなかったマクロを記録するセット (const メソッドから変更できるよう mutable を指定)
     mutable QSet<QString> m_unresolvedMacros;

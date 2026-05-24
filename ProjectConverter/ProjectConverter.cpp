@@ -182,6 +182,7 @@ void ProjectConverter::on_pushButtonConvert_clicked()
 	m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
 	m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
 	ModeDynamicLink = ui->checkBoxModeDynamicLink->isChecked();
+    ForceOpenMP     = ui->checkBoxModeForceOpenMP->isChecked();
 
     m_unresolvedMacros.clear();
     for(int i=0;i<ProjectFileName.count();i++){
@@ -391,6 +392,7 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
 	    m_enableParallelBuild=ui->checkBoxEnableParallelBuild->isChecked();
 	    m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
 		ModeDynamicLink = ui->checkBoxModeDynamicLink->isChecked();
+        ForceOpenMP     = ui->checkBoxModeForceOpenMP->isChecked();
 
         // プロジェクト設定を保存する処理をここに実装
 		// 例: QFileを使ってFileNameに設定内容を書き込む
@@ -426,12 +428,17 @@ bool    ProjectConverter::SaveSettings(const QString &FileName)
             for(const QString &lib : additionalLibraryFiles) {
                 out << lib << "\n";
             }
+            out << "[LinkOptions]\n";
+            for(const QString &option : additionalLinkOptimizations) {
+                out << option << "\n";
+            }
             // 並列ビルド設定の保存
             out << "[BuildSettings]\n";
             out << "EnableParallelBuild=" << (m_enableParallelBuild ? "1" : "0") << "\n";
             out << "MaxParallelBuilds=" << m_maxParallelBuilds << "\n";
 
 			out << "ModeDynamicLink=" << (ModeDynamicLink ? "1" : "0") << "\n";
+            out << "ForceOpenMP=" << (ForceOpenMP ? "1" : "0") << "\n";
 
             file.close();
 		}
@@ -500,7 +507,10 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
                     } else if (currentSection == "AdditionalLibraryFiles") {
                         additionalLibraryFiles.append(line);
                     // 並列ビルド設定の読み込み
-                    } else if (currentSection == "BuildSettings") {
+                    } else if (currentSection == "LinkOptions") {
+                        additionalLinkOptimizations.append(line);
+					}
+                    else if (currentSection == "BuildSettings") {
                         QStringList parts = line.split('=');
                         if (parts.size() == 2) {
                             if (parts[0].trimmed() == "EnableParallelBuild") {
@@ -509,6 +519,8 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
                                 m_maxParallelBuilds = parts[1].trimmed().toInt();
                             } else if (parts[0].trimmed() == "ModeDynamicLink") {
 								ModeDynamicLink = (parts[1].trimmed() == "1");
+                            } else if (parts[0].trimmed() == "ForceOpenMP") {
+                                ForceOpenMP = (parts[1].trimmed() == "1");  
                             }
                         }
                     }
@@ -522,11 +534,13 @@ bool    ProjectConverter::LoadSettings(const QString &FileName)
             ui->checkBoxEnableParallelBuild->setChecked(m_enableParallelBuild);
     	    ui->spinBoxMaxParallelBuilds->setValue(m_maxParallelBuilds);
 			ui->checkBoxModeDynamicLink->setChecked(ModeDynamicLink);
+            ui->checkBoxModeForceOpenMP->setChecked(ForceOpenMP);
 
             ShowMacro();
             ShowInclude();
             ShowLibrary();
             ShowOptimaze();
+            ShowLinkOptions();
             ShowExcludedLibraryFiles();
             ShowAdditionalLibraryFiles();
             return true;
@@ -610,3 +624,42 @@ void ProjectConverter::ShowAdditionalLibraryFiles(void)
         ui->listWidgetAdditionalLibraryFiles->addItem(additionalLibraryFiles[i]);
     }
 }
+void    ProjectConverter::ShowLinkOptions (void)
+{
+    ui->listWidgetLinkOptions->clear();
+    for(int i=0;i<additionalLinkOptimizations.count();i++){
+        ui->listWidgetLinkOptions->addItem(additionalLinkOptimizations[i]);
+    }
+}
+
+void ProjectConverter::on_listWidgetLinkOptions_itemDoubleClicked(QListWidgetItem *item)
+{
+	int row = ui->listWidgetLinkOptions->currentRow();
+    QString option = additionalLinkOptimizations[row];
+    QString newOption = QInputDialog::getText(this, tr("Edit Link Option"), tr("Link Option:"), QLineEdit::Normal, option);
+    if (!newOption.isEmpty()) {
+        additionalLinkOptimizations[row] = newOption;
+        ShowLinkOptions ();
+    }
+}
+
+
+void ProjectConverter::on_pushButtonAddLinkOptions_clicked()
+{
+    QString newOption = QInputDialog::getText(this, tr("Add Link Option"), tr("Link Option:"));
+    if (!newOption.isEmpty()) {
+        additionalLinkOptimizations.append(newOption);
+        ShowLinkOptions ();
+	}
+}
+
+
+void ProjectConverter::on_pushButtonDelLinkOptions_clicked()
+{
+    int row = ui->listWidgetLinkOptions->currentRow();
+    if (row >= 0 && row < additionalLinkOptimizations.count()) {
+        additionalLinkOptimizations.removeAt(row);
+        ShowLinkOptions ();
+	}
+}
+

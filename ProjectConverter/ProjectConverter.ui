@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>972</width>
-    <height>859</height>
+    <height>874</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -182,7 +182,7 @@
      <rect>
       <x>10</x>
       <y>600</y>
-      <width>911</width>
+      <width>391</width>
       <height>31</height>
      </rect>
     </property>
@@ -201,7 +201,7 @@
      <rect>
       <x>10</x>
       <y>629</y>
-      <width>911</width>
+      <width>391</width>
       <height>141</height>
      </rect>
     </property>
@@ -287,8 +287,8 @@
    <widget class="QPushButton" name="pushButtonDelOptimaze">
     <property name="geometry">
      <rect>
-      <x>930</x>
-      <y>699</y>
+      <x>410</x>
+      <y>700</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -300,8 +300,8 @@
    <widget class="QPushButton" name="pushButtonAddOptimaze">
     <property name="geometry">
      <rect>
-      <x>930</x>
-      <y>659</y>
+      <x>410</x>
+      <y>660</y>
       <width>31</width>
       <height>31</height>
      </rect>
@@ -489,13 +489,97 @@
     <property name="geometry">
      <rect>
       <x>260</x>
-      <y>820</y>
+      <y>810</y>
       <width>131</width>
       <height>21</height>
      </rect>
     </property>
     <property name="text">
      <string>DynamicLink</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonAddLinkOptions">
+    <property name="geometry">
+     <rect>
+      <x>930</x>
+      <y>660</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>+</string>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="listWidgetLinkOptions">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>629</y>
+      <width>391</width>
+      <height>101</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_8">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>600</y>
+      <width>391</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::Panel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Sunken</enum>
+    </property>
+    <property name="text">
+     <string>Additional Link options</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonDelLinkOptions">
+    <property name="geometry">
+     <rect>
+      <x>930</x>
+      <y>700</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>-</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_9">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>730</y>
+      <width>391</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Preprocessor Definitionsに&quot;LINKFREE&quot;があるとき、-Wl,--no-undefined　を無視する。これは、リンクを他のsoファイルとリンクさせるようにする</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="checkBoxModeForceOpenMP">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>840</y>
+      <width>131</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Force OpenMP</string>
     </property>
    </widget>
   </widget>
