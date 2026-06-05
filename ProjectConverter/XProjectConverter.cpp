@@ -955,17 +955,17 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
             }
         }
         
-        if (!libDirs.isEmpty()) {
+        QStringList libDirList;
+        for (const QString& path : libDirs) {
+            libDirList.append(path);
+        }
+        // ここで変数 cmakeLibPaths を定義して、後方でも使えるようにしておく
+        QStringList cmakeLibPaths = toCMakePaths(libDirList, configType);
+        
+        if (!cmakeLibPaths.isEmpty()) {
             ss << "target_link_directories(${PROJECT_NAME} PRIVATE\n";
             ss << "    $<$<CONFIG:" << configType << ">:\n";
-            
-            QStringList libDirList;
-            for (const QString& path : libDirs) {
-                libDirList.append(path);
-            }
-            
-            QStringList cmakePaths = toCMakePaths(libDirList, configType);
-            for (const QString& path : cmakePaths) {
+            for (const QString& path : cmakeLibPaths) {
                 ss << "        \"" << path << "\"\n";
             }
             ss << "    >\n)\n\n";
@@ -1060,16 +1060,24 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         if (!libs.isEmpty()) {
             ss << "if(WIN32)\n";
             ss << "    target_link_libraries(${PROJECT_NAME} PRIVATE\n";
-            ss << "        $<$<CONFIG:" << configType << ">:\n";
             for (const QString& lib : libs) {
-                ss << "            \"" << toCMakePath(lib, configType) << "\"\n";
+                ss << "        $<$<CONFIG:" << configType << ">:\"" << toCMakePath(lib, configType) << "\">\n";
             }
-            ss << "        >\n";
             ss << "    )\n";
             
             ss << "elseif(UNIX)\n";
             
             QStringList unixLibVars;
+
+            // ディレクトリ指定がないライブラリ用のフォールバックパス文字列を作成
+            QString fallbackPathsArg = "";
+            if (!cmakeLibPaths.isEmpty()) {
+                fallbackPathsArg = " PATHS";
+                for (const QString& p : cmakeLibPaths) {
+                    fallbackPathsArg += " \"" + p + "\"";
+                }
+            }
+
             for (const QString& lib : libs) {
                 QString unixLib = toCMakePath(lib, configType);
                 QFileInfo fi(unixLib);
@@ -1112,6 +1120,9 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                 QString pathsArg = "";
                 if (!dir.isEmpty()) {
                     pathsArg = " PATHS \"" + dir + "\" NO_DEFAULT_PATH";
+                } else if (!fallbackPathsArg.isEmpty()) {
+                    // ディレクトリが指定されていない場合は追加ディレクトリ一覧から検索させる
+                    pathsArg = fallbackPathsArg;
                 }
 
                 if (coreName.startsWith("tesseract", Qt::CaseInsensitive)) {
@@ -1171,13 +1182,11 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
             }
             
             ss << "    target_link_libraries(${PROJECT_NAME} PRIVATE\n";
-            ss << "        $<$<CONFIG:" << configType << ">:\n";
-            ss << "            -Wl,--start-group\n";
+            ss << "        $<$<CONFIG:" << configType << ">:-Wl,--start-group>\n";
             for (const QString& var : unixLibVars) {
-                ss << "            \"" << var << "\"\n";
+                ss << "        $<$<CONFIG:" << configType << ">:" << var << ">\n";
             }
-            ss << "            -Wl,--end-group\n";
-            ss << "        >\n";
+            ss << "        $<$<CONFIG:" << configType << ">:-Wl,--end-group>\n";
             ss << "    )\n";
             ss << "endif()\n\n";
         }
@@ -1352,11 +1361,22 @@ void VcxprojParser::appendAdditionalSettings(QString& content) const {
                 }
             }
 
-            QString findSuffix = "";
             // 指定されたパスがある場合は、そこだけを優先的に探すようにする
             if (hasValidPath) {
                 pathsArg = " PATHS" + pathsArg + " NO_DEFAULT_PATH";
-                findSuffix = " NO_DEFAULT_PATH";
+            } else if (!m_additionalLibraryDirs.isEmpty()) {
+                // パス指定がない場合、Additional Library Directories を検索パスとして構築する ▼▼▼
+                pathsArg = " PATHS";
+                for (const QString& dir : m_additionalLibraryDirs) {
+                    QString cmakeDir = toCMakePath(dir);
+                    // 相対パスの場合は ${CMAKE_CURRENT_SOURCE_DIR} を補完して絶対パス化する
+                    if (!cmakeDir.startsWith("/") && !cmakeDir.contains(":") && !cmakeDir.startsWith("$")) {
+                        cmakeDir = "${CMAKE_CURRENT_SOURCE_DIR}/" + cmakeDir;
+                    }
+                    pathsArg += " \"" + cmakeDir + "\"";
+                }
+                // ※システム標準ライブラリ（/usr/lib等）へのフォールバックも残すため、
+                // ここでは NO_DEFAULT_PATH をあえて付与しません。
             }
 
             if (coreName.startsWith("tesseract", Qt::CaseInsensitive)) {
