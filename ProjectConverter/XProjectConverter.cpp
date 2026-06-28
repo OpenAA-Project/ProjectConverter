@@ -391,8 +391,23 @@ void VcxprojParser::parseItemGroups(const QDomElement& root) {
         for (int j = 0; j < customBuildItems.count(); ++j) {
             QDomElement item = customBuildItems.at(j).toElement();
             QString file = item.attribute("Include");
-            if (!file.isEmpty() && (file.endsWith(".h", Qt::CaseInsensitive) || file.endsWith(".hpp", Qt::CaseInsensitive))) {
-                m_headers.append(toCMakePath(file));
+            if (!file.isEmpty()) {
+                if (file.endsWith(".h", Qt::CaseInsensitive) || file.endsWith(".hpp", Qt::CaseInsensitive)) {
+                    m_headers.append(toCMakePath(file));
+                }
+                else if (file.endsWith(".qrc", Qt::CaseInsensitive)) {
+                    m_qrcFiles.append(toCMakePath(file)); // .qrc ファイルを追加
+                }
+            }
+        }
+
+        // <None> タグとして登録されている .qrc ファイルも抽出
+        QDomNodeList noneItems = itemGroup.elementsByTagName("None");
+        for (int j = 0; j < noneItems.count(); ++j) {
+            QDomElement item = noneItems.at(j).toElement();
+            QString file = item.attribute("Include");
+            if (!file.isEmpty() && file.endsWith(".qrc", Qt::CaseInsensitive)) {
+                m_qrcFiles.append(toCMakePath(file));
             }
         }
 
@@ -618,7 +633,31 @@ QString VcxprojParser::generateCMakeLists() const
         ss << "# Link OpenMP\n";
         ss << "target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)\n\n";
     }
-  
+ 
+    // --- .desktop.in ファイルの自動検出とインストール設定 ---
+    QDir projDir(m_projectDir);
+    QStringList desktopInFiles = projDir.entryList(QStringList() << "*.desktop.in", QDir::Files);
+    if (!desktopInFiles.isEmpty()) {
+        QString desktopInName = desktopInFiles.first(); // 最初に見つかった .desktop.in を使用
+        QString desktopOutName = desktopInName;
+        desktopOutName.chop(3); // 末尾の ".in" を削除して出力ファイル名を作成
+
+        ss << "# =========================================================================\n";
+        ss << "# .desktop file configuration and installation\n";
+        ss << "# =========================================================================\n";
+        ss << "if(UNIX AND NOT APPLE)\n";
+        ss << "    configure_file(\n";
+        ss << "        \"${CMAKE_CURRENT_SOURCE_DIR}/" << desktopInName << "\"\n";
+        ss << "        \"${CMAKE_CURRENT_BINARY_DIR}/" << desktopOutName << "\"\n";
+        ss << "        @ONLY\n";
+        ss << "    )\n";
+        ss << "    install(\n";
+        ss << "        FILES \"${CMAKE_CURRENT_BINARY_DIR}/" << desktopOutName << "\"\n";
+        ss << "        DESTINATION \"$ENV{HOME}/.local/share/applications\"\n";
+        ss << "    )\n";
+        ss << "endif()\n\n";
+    }
+
     // ▼ 未解決マクロがある場合、CMakeLists.txt の末尾に警告コメントとして出力
     QStringList unresolvedList = getUnresolvedMacros();
     if (!unresolvedList.isEmpty()) {
