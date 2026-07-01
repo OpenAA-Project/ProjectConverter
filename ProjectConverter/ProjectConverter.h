@@ -182,6 +182,11 @@ struct VcxprojConfig {
     QStringList libraryDirectories;
     QStringList additionalDependencies;
 
+    QString stackReserveSize;
+    QString stackCommitSize;
+    QString heapReserveSize;
+    QString heapCommitSize;
+
     bool useOpenMP = false;
 };
 
@@ -306,6 +311,8 @@ private:
     void appendTargetProperties(QString& content) const;
     void appendOptimizationFlags(QString& content, const VcxprojConfig& config) const;
     void appendRuntimeLibraryFlags(QString& content, const VcxprojConfig& config) const;
+    
+    void appendLinkStackHeapFlags(QString& content, const VcxprojConfig& config) const;
     
     // 追加設定を出力
     void appendAdditionalSettings(QString& content) const;

@@ -354,6 +354,18 @@ void VcxprojParser::parseItemDefinitions(const QDomElement& root) {
                     }
                 }
                 config->additionalDependencies.removeDuplicates();
+
+                QDomElement stackReserve = link.firstChildElement("StackReserveSize");
+                if (!stackReserve.isNull()) config->stackReserveSize = stackReserve.text().trimmed();
+
+                QDomElement stackCommit = link.firstChildElement("StackCommitSize");
+                if (!stackCommit.isNull()) config->stackCommitSize = stackCommit.text().trimmed();
+
+                QDomElement heapReserve = link.firstChildElement("HeapReserveSize");
+                if (!heapReserve.isNull()) config->heapReserveSize = heapReserve.text().trimmed();
+
+                QDomElement heapCommit = link.firstChildElement("HeapCommitSize");
+                if (!heapCommit.isNull()) config->heapCommitSize = heapCommit.text().trimmed();
             }
         }
     }
@@ -1234,6 +1246,7 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         ss << "if(MSVC)\n";
         appendOptimizationFlags(content, config);
         appendRuntimeLibraryFlags(content, config);
+        appendLinkStackHeapFlags(content, config);
         ss << "endif()\n\n";
 
         ss << "# --- End of " << configType << " ---\n\n";
@@ -1501,6 +1514,40 @@ void VcxprojParser::appendOptimizationFlags(QString& content, const VcxprojConfi
     ss << "    )\n";
 }
 
+void VcxprojParser::appendLinkStackHeapFlags(QString& content, const VcxprojConfig& config) const {
+    QTextStream ss(&content);
+    QStringList linkFlags;
+
+    // スタックサイズ (/STACK:reserve[,commit])
+    if (!config.stackReserveSize.isEmpty() || !config.stackCommitSize.isEmpty()) {
+        QString flag = "/STACK:";
+        // Commitのみ指定されてReserveが空の場合は、エラー回避のため 0 を指定（OSのデフォルトに委ねる）
+        flag += config.stackReserveSize.isEmpty() ? "0" : config.stackReserveSize;
+        if (!config.stackCommitSize.isEmpty()) {
+            flag += "," + config.stackCommitSize;
+        }
+        linkFlags.append(flag);
+    }
+
+    // ヒープサイズ (/HEAP:reserve[,commit])
+    if (!config.heapReserveSize.isEmpty() || !config.heapCommitSize.isEmpty()) {
+        QString flag = "/HEAP:";
+        // Commitのみ指定されてReserveが空の場合は、エラー回避のため 0 を指定
+        flag += config.heapReserveSize.isEmpty() ? "0" : config.heapReserveSize;
+        if (!config.heapCommitSize.isEmpty()) {
+            flag += "," + config.heapCommitSize;
+        }
+        linkFlags.append(flag);
+    }
+
+    if (!linkFlags.isEmpty()) {
+        ss << "    target_link_options(${PROJECT_NAME} PRIVATE\n";
+        for (const QString& flag : linkFlags) {
+            ss << "        $<$<CONFIG:" << config.configType << ">:" << flag << ">\n";
+        }
+        ss << "    )\n";
+    }
+}
 void VcxprojParser::appendRuntimeLibraryFlags(QString& content, const VcxprojConfig& config) const {
     if (config.runtimeLibrary.isEmpty()) return;
 
