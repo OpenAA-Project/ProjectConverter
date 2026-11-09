@@ -796,6 +796,11 @@ void VcxprojParser::appendFileLists(QString& content) const {
         QString actualFile = resolveActualCasing(file);
         QString lowerFile = actualFile.toLower(); // 判定用に小文字化
 
+        QFileInfo fi(actualFile);
+        if (fi.fileName().startsWith("qrc_", Qt::CaseInsensitive) && 
+            fi.suffix().compare("cpp", Qt::CaseInsensitive) == 0) {
+            continue;
+        }
         if (lowerFile.contains("/debug/") || lowerFile.startsWith("debug/")) {
             debugSources.append(actualFile);
         } else if (lowerFile.contains("/release/") || lowerFile.startsWith("release/")) {
