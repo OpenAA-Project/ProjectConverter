@@ -369,6 +369,41 @@ void VcxprojParser::parseItemDefinitions(const QDomElement& root) {
             }
         }
     }
+    for (auto it = m_configs.begin(); it != m_configs.end(); ++it) {
+        VcxprojConfig& debugCfg = it.value();
+        if (debugCfg.configType.compare("Debug", Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+
+        // 同じプラットフォーム (x64など) の Release 構成を優先的に探す
+        const VcxprojConfig* releaseCfg = nullptr;
+        for (auto relIt = m_configs.constBegin(); relIt != m_configs.constEnd(); ++relIt) {
+            if (relIt.value().configType.compare("Release", Qt::CaseInsensitive) == 0) {
+                if (relIt.value().platform.compare(debugCfg.platform, Qt::CaseInsensitive) == 0) {
+                    releaseCfg = &relIt.value();
+                    break;
+                }
+                if (!releaseCfg) {
+                    releaseCfg = &relIt.value();
+                }
+            }
+        }
+
+        if (releaseCfg) {
+            // インクルード設定が存在しない場合、Releaseの設定をコピー
+            if (debugCfg.includeDirectories.isEmpty()) {
+                debugCfg.includeDirectories = releaseCfg->includeDirectories;
+            }
+            // リンクディレクトリ設定が存在しない場合、Releaseの設定をコピー
+            if (debugCfg.libraryDirectories.isEmpty()) {
+                debugCfg.libraryDirectories = releaseCfg->libraryDirectories;
+            }
+            // リンクライブラリ設定が存在しない場合、Releaseの設定をコピー
+            if (debugCfg.additionalDependencies.isEmpty()) {
+                debugCfg.additionalDependencies = releaseCfg->additionalDependencies;
+            }
+        }
+    }
 }
 
 // <ItemGroup> (ファイルリスト) を解析
@@ -900,6 +935,16 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
     QSet<QString> processedConfigs;
     QSet<QString> outDirsForCheck;
 
+    // Release側に x64 プラットフォームが存在するか事前チェック（フォールバック用）
+    bool hasReleaseX64 = false;
+    for (const VcxprojConfig& cfg : m_configs.values()) {
+        if (cfg.configType.compare("Release", Qt::CaseInsensitive) == 0 &&
+            cfg.platform.compare("x64", Qt::CaseInsensitive) == 0) {
+            hasReleaseX64 = true;
+            break;
+        }
+    }
+
     for (const VcxprojConfig& config : m_configs.values()) {
         QString configType = config.configType; // "Debug" または "Release"
         if (processedConfigs.contains(configType)) {
@@ -980,6 +1025,17 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                 }
             }
         }
+        // ★ Debug のインクルード設定が存在しないとき、Release のインクルード設定を使用
+        if (includeDirs.isEmpty() && configType.compare("Debug", Qt::CaseInsensitive) == 0) {
+            for (const VcxprojConfig& cfg : m_configs.values()) {
+                if (cfg.configType.compare("Release", Qt::CaseInsensitive) == 0) {
+                    if (hasReleaseX64 && cfg.platform.compare("x64", Qt::CaseInsensitive) != 0) continue;
+                    for (const QString& path : cfg.includeDirectories) {
+                        includeDirs.insert(path);
+                    }
+                }
+            }
+        }
         
         if (!includeDirs.isEmpty()) {
             ss << "target_include_directories(${PROJECT_NAME} PRIVATE\n";
@@ -1010,12 +1066,24 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                 }
             }
         }
+        // ★ Debug のリンクディレクトリ設定が存在しないとき、Release の設定を使用
+        if (libDirs.isEmpty() && configType.compare("Debug", Qt::CaseInsensitive) == 0) {
+            for (const VcxprojConfig& cfg : m_configs.values()) {
+                if (cfg.configType.compare("Release", Qt::CaseInsensitive) == 0) {
+                    if (hasReleaseX64 && cfg.platform.compare("x64", Qt::CaseInsensitive) != 0) continue;
+                    for (const QString& path : cfg.libraryDirectories) {
+                        if (path != "%(AdditionalLibraryDirectories)") {
+                            libDirs.insert(path);
+                        }
+                    }
+                }
+            }
+        }
         
         QStringList libDirList;
         for (const QString& path : libDirs) {
             libDirList.append(path);
         }
-        // ここで変数 cmakeLibPaths を定義して、後方でも使えるようにしておく
         QStringList cmakeLibPaths = toCMakePaths(libDirList, configType);
         
         if (!cmakeLibPaths.isEmpty()) {
@@ -1057,60 +1125,66 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         }
         
         // --- Linked Libraries ---
-        QSet<QString> libs;
-        for (const VcxprojConfig& cfg : m_configs.values()) {
-            if (cfg.configType == configType) {
-                // 該当構成(DebugやRelease)に x64 の設定が存在する場合、Win32 等は完全に無視する
-                if (hasX64 && cfg.platform.compare("x64", Qt::CaseInsensitive) != 0) {
-                    continue;
-                }
+        auto collectLibs = [&](const QString& targetType, bool targetHasX64) -> QSet<QString> {
+            QSet<QString> resultLibs;
+            for (const VcxprojConfig& cfg : m_configs.values()) {
+                if (cfg.configType.compare(targetType, Qt::CaseInsensitive) == 0) {
+                    if (targetHasX64 && cfg.platform.compare("x64", Qt::CaseInsensitive) != 0) {
+                        continue;
+                    }
 
-                for (const QString& lib : cfg.additionalDependencies) {
-                    if (lib != "%(AdditionalDependencies)") {
-                        QString libBaseName = QFileInfo(lib).completeBaseName();
-                        if (libBaseName.startsWith("Qt", Qt::CaseInsensitive)) continue;
+                    for (const QString& lib : cfg.additionalDependencies) {
+                        if (lib != "%(AdditionalDependencies)") {
+                            QString libBaseName = QFileInfo(lib).completeBaseName();
+                            if (libBaseName.startsWith("Qt", Qt::CaseInsensitive)) continue;
 
-                        if (libBaseName.compare(m_projectName, Qt::CaseInsensitive) == 0 ||
-                            libBaseName.compare("lib" + m_projectName, Qt::CaseInsensitive) == 0) {
-                            continue;
-                        }
-                        QString lowerLib = libBaseName.toLower();
-                        if (lowerLib.startsWith("opengl32") || lowerLib.startsWith("glu32") ||
-                            lowerLib.startsWith("glfw") || lowerLib.startsWith("glew")) {
-                            continue;
-                        }
-
-                        bool isExcluded = false;
-                        QString libFileName = QFileInfo(lib).fileName(); 
-                        for (const QString& excl : m_excludedLibraryFiles) {
-                            if (lib.compare(excl, Qt::CaseInsensitive) == 0 || 
-                                libFileName.compare(excl, Qt::CaseInsensitive) == 0) {
-                                isExcluded = true;
-                                break;
+                            if (libBaseName.compare(m_projectName, Qt::CaseInsensitive) == 0 ||
+                                libBaseName.compare("lib" + m_projectName, Qt::CaseInsensitive) == 0) {
+                                continue;
                             }
-                        }
+                            QString lowerLib = libBaseName.toLower();
+                            if (lowerLib.startsWith("opengl32") || lowerLib.startsWith("glu32") ||
+                                lowerLib.startsWith("glfw") || lowerLib.startsWith("glew")) {
+                                continue;
+                            }
 
-                        // additionalLibraryFiles に登録されているライブラリは元の依存関係から自動除外 ---
-                        if (!isExcluded) {
-                            QString projLibBase = libBaseName.toLower();
-                            if (projLibBase.startsWith("lib")) projLibBase = projLibBase.mid(3);
-
-                            for (const QString& addLib : m_additionalLibraryFiles) {
-                                QString addLibBase = QFileInfo(addLib).completeBaseName().toLower();
-                                if (addLibBase.startsWith("lib")) addLibBase = addLibBase.mid(3);
-                                
-                                // "NetworkDrive" と "libNetworkDrive" を同一とみなして除外する
-                                if (projLibBase == addLibBase) {
+                            bool isExcluded = false;
+                            QString libFileName = QFileInfo(lib).fileName(); 
+                            for (const QString& excl : m_excludedLibraryFiles) {
+                                if (lib.compare(excl, Qt::CaseInsensitive) == 0 || 
+                                    libFileName.compare(excl, Qt::CaseInsensitive) == 0) {
                                     isExcluded = true;
                                     break;
                                 }
                             }
+
+                            if (!isExcluded) {
+                                QString projLibBase = libBaseName.toLower();
+                                if (projLibBase.startsWith("lib")) projLibBase = projLibBase.mid(3);
+
+                                for (const QString& addLib : m_additionalLibraryFiles) {
+                                    QString addLibBase = QFileInfo(addLib).completeBaseName().toLower();
+                                    if (addLibBase.startsWith("lib")) addLibBase = addLibBase.mid(3);
+                                    
+                                    if (projLibBase == addLibBase) {
+                                        isExcluded = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (isExcluded) continue;
+                            resultLibs.insert(lib);
                         }
-                        if (isExcluded) continue;
-                        libs.insert(lib);
                     }
                 }
             }
+            return resultLibs;
+        };
+
+        QSet<QString> libs = collectLibs(configType, hasX64);
+        // ★ Debug のリンクライブラリ設定が存在しないとき、Release の設定を使用
+        if (libs.isEmpty() && configType.compare("Debug", Qt::CaseInsensitive) == 0) {
+            libs = collectLibs("Release", hasReleaseX64);
         }
 
         if (!libs.isEmpty()) {
@@ -1125,7 +1199,6 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
             
             QStringList unixLibVars;
 
-            // ディレクトリ指定がないライブラリ用のフォールバックパス文字列を作成
             QString fallbackPathsArg = "";
             if (!cmakeLibPaths.isEmpty()) {
                 fallbackPathsArg = " PATHS";
@@ -1177,7 +1250,6 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                 if (!dir.isEmpty()) {
                     pathsArg = " PATHS \"" + dir + "\" NO_DEFAULT_PATH";
                 } else if (!fallbackPathsArg.isEmpty()) {
-                    // ディレクトリが指定されていない場合は追加ディレクトリ一覧から検索させる
                     pathsArg = fallbackPathsArg;
                 }
 
@@ -1212,11 +1284,10 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
                     ss << "    endif()\n\n";
                 } else {
                     QString searchName;
-                    // Windows特有の .lib は無視して Linux向けの .a に変換する
                     if (!fi.suffix().isEmpty() && fi.suffix().compare("lib", Qt::CaseInsensitive) != 0) {
-                        searchName = fi.fileName(); // 拡張子がある場合は元のファイル名を使用
+                        searchName = fi.fileName();
                     } else {
-                        searchName = "lib" + coreName + ".a"; // ない場合は.aを付与
+                        searchName = "lib" + coreName + ".a";
                     }
 
                     ss << "    # --- Exact/Static Library Linking for " << coreName << " (" << configType << ") ---\n";
@@ -1257,7 +1328,6 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         ss << "# --- End of " << configType << " ---\n\n";
     }
 
-    // 出力フォルダー内に同名のフォルダーがある場合は実行ファイル名に"App"を追加
     QString targetType = "Application";
     if (m_configs.contains("Release|x64")) {
         targetType = m_configs["Release|x64"].configurationType;
@@ -1276,7 +1346,6 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
         ss << "\n";
     }
 
-    // Qt 6 モジュールへのリンク
     ss << "target_link_libraries(${PROJECT_NAME} PRIVATE\n";
     QStringList comps = getQtComponents();
     for (const QString& comp : comps) {
@@ -1284,6 +1353,7 @@ void VcxprojParser::appendTargetProperties(QString& content) const {
     }
     ss << ")\n\n";
 }
+
 
 // 追加設定情報をファイルに出力
 void VcxprojParser::appendAdditionalSettings(QString& content) const {
