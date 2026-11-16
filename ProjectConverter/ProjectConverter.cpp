@@ -663,3 +663,34 @@ void ProjectConverter::on_pushButtonDelLinkOptions_clicked()
 	}
 }
 
+
+void ProjectConverter::on_lineEditFileName_textChanged(const QString &arg1)
+{
+QStringList files = arg1.split(';', Qt::SkipEmptyParts);
+    bool onlySln = false;
+
+    if (!files.isEmpty()) {
+        onlySln = true;
+        for (const QString &file : files) {
+            QFileInfo info(file);
+            if (info.suffix().toLower() != "sln") {
+                onlySln = false;
+                break;
+            }
+        }
+    }
+
+    ui->pushButtonConvertOnlySLN->setEnabled(onlySln);
+}
+
+
+void ProjectConverter::on_pushButtonConvertOnlySLN_clicked()
+{
+    m_enableParallelBuild = ui->checkBoxEnableParallelBuild->isChecked();
+    m_maxParallelBuilds = ui->spinBoxMaxParallelBuilds->value();
+
+    for(int i = 0; i < SLNFiles.count(); i++){
+        CreateRootCMakeFile(SLNFiles[i]);
+    }
+}
+

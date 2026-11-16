@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>972</width>
-    <height>895</height>
+    <height>914</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -79,10 +79,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Replace macro , $(XXX) -&gt; YYYY</string>
@@ -98,10 +98,10 @@
      </rect>
     </property>
     <property name="selectionMode">
-     <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+     <enum>QAbstractItemView::SingleSelection</enum>
     </property>
     <property name="selectionBehavior">
-     <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+     <enum>QAbstractItemView::SelectRows</enum>
     </property>
     <column>
      <property name="text">
@@ -129,10 +129,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Additional include path</string>
@@ -158,10 +158,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Additional library(module) path</string>
@@ -187,10 +187,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Additional optimization parameter</string>
@@ -408,10 +408,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Excluded Library Files</string>
@@ -440,10 +440,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Additional Library Files</string>
@@ -531,10 +531,10 @@
      </rect>
     </property>
     <property name="frameShape">
-     <enum>QFrame::Shape::Panel</enum>
+     <enum>QFrame::Panel</enum>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Shadow::Sunken</enum>
+     <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
      <string>Additional Link options</string>
@@ -593,6 +593,25 @@
     </property>
     <property name="text">
      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Optimize : -03  ,-march=native&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButtonConvertOnlySLN">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>870</y>
+      <width>221</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>convert only SLN</string>
     </property>
    </widget>
   </widget>

@@ -132,6 +132,9 @@ private slots:
     void on_pushButtonAddLinkOptions_clicked();
     void on_pushButtonDelLinkOptions_clicked();
 
+    void on_lineEditFileName_textChanged(const QString &arg1);
+    void on_pushButtonConvertOnlySLN_clicked();
+
 private:
     Ui::ProjectConverter *ui;
 
